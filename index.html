@@ -1,0 +1,228 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Workflow Designer</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&family=Roboto+Mono:wght@400&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header class="topbar">
+    <button type="button" class="btn btn--secondary topbar__back" id="moduleBackBtn">
+      <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M19 12H5M11 6l-6 6 6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      Back to Module Dashboard
+    </button>
+    <h1 class="topbar__title">Workflow</h1>
+    <button type="button" class="btn btn--tertiary topbar__help" id="headerHelpBtn" aria-haspopup="dialog">
+      <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><circle cx="12" cy="12" r="9.5" fill="none" stroke="currentColor" stroke-width="2"/><path d="M9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .9-1 1.6V14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="12" cy="17.2" r="1.2" fill="currentColor"/></svg>
+      Help
+    </button>
+    <button type="button" class="btn btn--secondary topbar__guides" id="guidesBtn">
+      <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M3 5.5C5.5 4.5 8.5 4.5 12 6.5c3.5-2 6.5-2 9-1v13c-2.5-1-5.5-1-9 1-3.5-2-6.5-2-9-1z" fill="currentColor"/><path d="M12 6.5v13M14.5 9.5h4M14.5 12.5h4M14.5 15.5h4" fill="none" stroke="#fff" stroke-width="1.4" stroke-linecap="round"/></svg>
+      Tutorials and Guides
+    </button>
+  </header>
+
+  <main class="layout">
+    <!-- Left: state palette -->
+    <aside class="sidebar sidebar--left" aria-labelledby="paletteHeading">
+      <div class="sidebar__head">
+        <h2 id="paletteHeading">States</h2>
+        <p class="muted">Click or drag a state to add it to the canvas</p>
+      </div>
+      <ul class="palette" id="palette">
+        <li>
+          <button type="button" class="palette-item palette-item--start" data-type="start" draggable="true">
+            <span class="palette-item__icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="18" height="18"><path d="M7 4.5v15l12-7.5z" fill="currentColor" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg></span>
+            <span class="palette-item__text">
+              <span class="palette-item__title">Start state</span>
+              <span class="palette-item__desc">This is where the workflow starts.</span>
+            </span>
+          </button>
+        </li>
+        <li>
+          <button type="button" class="palette-item palette-item--intermediate" data-type="intermediate" draggable="true">
+            <span class="palette-item__icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><g transform="rotate(90 12 12)"><circle cx="6" cy="19" r="2.5"/><path d="M8.5 19h9a3.5 3.5 0 0 0 0-7h-11a3.5 3.5 0 0 1 0-7H15.5"/><circle cx="18" cy="5" r="2.5"/></g></svg></span>
+            <span class="palette-item__text">
+              <span class="palette-item__title">Intermediate state</span>
+              <span class="palette-item__desc">This is a step inside the workflow.</span>
+            </span>
+          </button>
+        </li>
+        <li>
+          <button type="button" class="palette-item palette-item--end" data-type="end" draggable="true">
+            <span class="palette-item__icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="16" height="16"><rect x="4" y="4" width="16" height="16" rx="3" fill="currentColor"/></svg></span>
+            <span class="palette-item__text">
+              <span class="palette-item__title">End state</span>
+              <span class="palette-item__desc">This is where the workflow finishes.</span>
+            </span>
+          </button>
+        </li>
+      </ul>
+    </aside>
+
+    <!-- Middle: canvas -->
+    <section class="canvas" aria-label="Workflow canvas">
+      <div class="canvas__bar">
+        <div class="canvas__left">
+          <div class="stats" id="stats" aria-live="polite"></div>
+        </div>
+        <div class="canvas__actions">
+          <button type="button" class="btn btn--secondary btn--small" id="viewConfigBtn">
+            <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path d="M8 7l-5 5 5 5M16 7l5 5-5 5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            View Configuration
+          </button>
+        </div>
+      </div>
+
+
+      <div class="viewport" id="viewport">
+        <div class="world" id="world">
+          <svg class="edges" id="edges" aria-hidden="true">
+            <defs>
+              <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="9" markerHeight="9" markerUnits="userSpaceOnUse" orient="auto-start-reverse">
+                <path d="M0 0L10 5L0 10z" class="arrow" />
+              </marker>
+              <marker id="arrowSelected" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="11" markerHeight="11" markerUnits="userSpaceOnUse" orient="auto-start-reverse">
+                <path d="M0 0L10 5L0 10z" class="arrow arrow--selected" />
+              </marker>
+            </defs>
+            <g id="edgeGroup"></g>
+            <path id="ghostEdge" class="ghost-edge" hidden />
+          </svg>
+          <div id="labels" class="labels"></div>
+          <div id="nodes" class="nodes"></div>
+        </div>
+
+        <div class="empty" id="emptyState">
+          <!-- Same container as the Help guide, minus the close button; it goes away once a state is added -->
+          <section class="empty-guide" aria-labelledby="emptyGuideTitle">
+            <div class="empty-guide__head">
+              <h2 id="emptyGuideTitle">Guide to make a workflow</h2>
+              <p class="muted">Six steps from an empty canvas to downloadable code.</p>
+            </div>
+            <div class="empty-guide__body"><!-- steps copied in from the Help guide --></div>
+          </section>
+        </div>
+      </div>
+
+      <div class="zoom" role="group" aria-label="Zoom">
+        <button type="button" class="icon-btn" id="zoomOutBtn" aria-label="Zoom out" title="Zoom out">
+          <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M5 12h14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+        </button>
+        <button type="button" class="zoom__label" id="zoomLabel" title="Reset to 100%">100%</button>
+        <button type="button" class="icon-btn" id="zoomInBtn" aria-label="Zoom in" title="Zoom in">
+          <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M5 12h14M12 5v14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+        </button>
+        <span class="zoom__divider" aria-hidden="true"></span>
+        <button type="button" class="icon-btn" id="fitBtn" aria-label="Zoom to fit" title="Zoom to fit">
+          <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+        <span class="zoom__divider" aria-hidden="true"></span>
+        <div class="menu-anchor">
+          <button type="button" class="icon-btn" id="canvasMenuBtn" aria-label="Canvas options" title="Canvas options" aria-haspopup="menu" aria-expanded="false" aria-controls="canvasMenu">
+            <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><circle cx="5" cy="12" r="1.8" fill="currentColor"/><circle cx="12" cy="12" r="1.8" fill="currentColor"/><circle cx="19" cy="12" r="1.8" fill="currentColor"/></svg>
+          </button>
+          <div class="menu" id="canvasMenu" role="menu" aria-label="Canvas options" hidden>
+            <button type="button" class="menu__item menu__item--danger" role="menuitem" id="clearBtn">
+              <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              <span>
+                <span class="menu__label">Clear canvas</span>
+                <span class="menu__hint">Removes every state and action from the canvas</span>
+              </span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Right: configure panel -->
+    <aside class="sidebar sidebar--right" id="inspector" aria-label="Properties" hidden></aside>
+  </main>
+
+  <footer class="footer">
+    <button type="button" class="btn btn--secondary btn--large" id="backBtn">
+      <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M19 12H5M11 6l-6 6 6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      Back
+    </button>
+    <div class="footer__right">
+      <p class="footer__saved" id="savedNote" role="status" hidden><span aria-hidden="true">✓</span> Workflow saved</p>
+      <button type="button" class="btn btn--primary btn--large" id="saveBtn">Save</button>
+    </div>
+  </footer>
+
+  <!-- View Configuration -->
+  <dialog class="modal" id="configDialog" aria-labelledby="configTitle">
+    <div class="modal__head">
+      <div>
+        <h2 id="configTitle" class="modal__title--blue">Workflow configuration</h2>
+        <p class="muted" id="configDesc">Copy or download this code, then import it into Studio to create a new service.</p>
+      </div>
+      <button type="button" class="icon-btn" data-close aria-label="Close">
+        <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+      </button>
+    </div>
+    <div class="modal__body">
+      <pre class="code" tabindex="0" aria-label="Configuration code"><code id="configCode"></code></pre>
+    </div>
+    <div class="modal__foot">
+      <button type="button" class="btn btn--secondary" id="copyBtn">Copy Code</button>
+      <button type="button" class="btn btn--primary" id="downloadBtn">
+        <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M12 4v11M7 10l5 5 5-5M5 20h14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        Download Code
+      </button>
+    </div>
+  </dialog>
+
+  <!-- Guide to make a workflow -->
+  <dialog class="modal modal--narrow" id="helpDialog" aria-labelledby="helpTitle">
+    <div class="modal__head">
+      <div>
+        <h2 id="helpTitle">Guide to make a workflow</h2>
+        <p class="muted">Six steps from an empty canvas to downloadable code.</p>
+      </div>
+      <button type="button" class="icon-btn" data-close aria-label="Close">
+        <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+      </button>
+    </div>
+    <div class="modal__body">
+      <ol class="help-steps">
+        <li>
+          <strong>Add a start state</strong>
+          <span>Click <em>Start state</em> in the left panel, or drag it onto the canvas. A workflow has one start state, and its form is included.</span>
+        </li>
+        <li>
+          <strong>Add the other states</strong>
+          <span>Add an intermediate state for each step, and an end state for every way the workflow can finish. Drag states on the canvas to arrange them.</span>
+        </li>
+        <li>
+          <strong>Connect states with actions</strong>
+          <span>Drag from the + on a state to the next state, or click the + and then the next state.</span>
+        </li>
+        <li>
+          <strong>Set up each state</strong>
+          <span>Select a state to set its SLA, notifications, documents, payments and auto escalation.</span>
+        </li>
+        <li>
+          <strong>Set up each action</strong>
+          <span>Select an action&rsquo;s label on the canvas to choose its roles, attach a checklist and turn on its settings.</span>
+        </li>
+        <li>
+          <strong>Check and download</strong>
+          <span>Fix anything listed under issues, then use <em>View Configuration</em> to copy or download the code.</span>
+        </li>
+      </ol>
+    </div>
+    <div class="modal__foot">
+      <button type="button" class="btn btn--primary" data-close>Got It</button>
+    </div>
+  </dialog>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <script src="app.js"></script>
+</body>
+</html>
