@@ -381,9 +381,9 @@
     } else if (type === 'intermediate') {
       const g = svgEl('g', { transform: 'rotate(90 12 12)', fill: 'none', stroke: 'currentColor', 'stroke-width': '2.2', 'stroke-linecap': 'round', 'stroke-linejoin': 'round' });
       g.append(
-        svgEl('circle', { cx: 6, cy: 19, r: 2.5 }),
+        svgEl('circle', { cx: 6, cy: 19, r: 2.5, fill: 'currentColor' }),
         svgEl('path', { d: 'M8.5 19h9a3.5 3.5 0 0 0 0-7h-11a3.5 3.5 0 0 1 0-7H15.5' }),
-        svgEl('circle', { cx: 18, cy: 5, r: 2.5 })
+        svgEl('circle', { cx: 18, cy: 5, r: 2.5, fill: 'currentColor' })
       );
       svg.append(g);
     } else {
