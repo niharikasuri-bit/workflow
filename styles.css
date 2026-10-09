@@ -1015,3 +1015,4 @@ button { cursor: pointer; }
 .confirm__desc strong { color: var(--text); }
 .confirm__actions { gap: 12px; margin-top: 12px; }
 .confirm__actions .btn { min-height: 40px; font-size: 14px; }
+.confirm__actions .btn { min-height: 36px; font-size: 14px; padding: 0 12px; }
