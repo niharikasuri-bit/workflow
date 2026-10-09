@@ -200,12 +200,13 @@
   const deleteDialog = $('#deleteDialog');
   let pendingDelete = null;
 
-  function confirmDelete(name, onConfirm, extra = '', { title, question, cta = 'Delete' } = {}) {
-    $('#delTitle').textContent = title || `Proceed to delete "${name}"?`;
+  function confirmDelete(name, onConfirm, extra = '', { title, question, cta = 'Delete', kind = '' } = {}) {
+    const what = kind ? `${kind.toLowerCase()} ` : '';
+    $('#delTitle').textContent = title || `Proceed to delete ${what}"${name}"?`;
     $('#delDesc').replaceChildren(
       ...(question
         ? [question]
-        : ['Are you sure you want to delete ', el('strong', {}, `"${name}"`), '?']),
+        : [`Are you sure you want to delete ${what}`, el('strong', {}, `"${name}"`), '?']),
       ` ${extra ? extra + ' ' : ''}This action cannot be undone.`
     );
     $('#delConfirm').textContent = cta;
@@ -227,7 +228,7 @@
     const s = stateById(id);
     if (!s) return;
     const linked = wf.actions.filter((a) => a.from === id || a.to === id).length;
-    confirmDelete(s.name, () => removeState(id), linked ? `Its ${plural(linked, 'action')} will be deleted too.` : '');
+    confirmDelete(s.name, () => removeState(id), linked ? `Its ${plural(linked, 'action')} will be deleted too.` : '', { kind: 'State' });
   }
 
   function removeState(id) {
@@ -244,7 +245,7 @@
   function deleteAction(id) {
     const a = actionById(id);
     if (!a) return;
-    confirmDelete(a.name, () => removeAction(id));
+    confirmDelete(a.name, () => removeAction(id), '', { kind: 'Action' });
   }
 
   function removeAction(id) {
@@ -1051,7 +1052,7 @@
             commit();
             renderInspector();
             toast(`${item.name} deleted`);
-          }),
+          }, '', { kind: cfg.noun }),
         }, icon('M5 4h14v16H5zM9.5 9.5l5 5M14.5 9.5l-5 5', 18))
       );
     };
@@ -1382,7 +1383,7 @@
               renderInspector();
               $('[data-add="checklist"]', inspector)?.focus();
               toast(`${item.name} deleted`);
-            }),
+            }, '', { kind: 'Checklist' }),
           }, icon('M5 4h14v16H5zM9.5 9.5l5 5M14.5 9.5l-5 5', 18))
         )
       );
@@ -1451,7 +1452,7 @@
         section(null, {}, field('Action Name', nameEl, null, { required: true })),
         section(
           'Roles',
-          { info: 'Who is allowed to take this action. Only people with these roles will see it.' },
+          { info: 'Roles are the permissions given to users that allow them to take this action. Only users with these roles will see it.' },
           rolesCard(a)
         ),
         checklistSection(a),
