@@ -200,13 +200,15 @@
   const deleteDialog = $('#deleteDialog');
   let pendingDelete = null;
 
-  function confirmDelete(name, onConfirm, extra = '') {
-    $('#delTitle').textContent = `Proceed to delete "${name}"?`;
+  function confirmDelete(name, onConfirm, extra = '', { title, question, cta = 'Delete' } = {}) {
+    $('#delTitle').textContent = title || `Proceed to delete "${name}"?`;
     $('#delDesc').replaceChildren(
-      'Are you sure you want to delete ',
-      el('strong', {}, `"${name}"`),
-      `? ${extra ? extra + ' ' : ''}This action cannot be undone.`
+      ...(question
+        ? [question]
+        : ['Are you sure you want to delete ', el('strong', {}, `"${name}"`), '?']),
+      ` ${extra ? extra + ' ' : ''}This action cannot be undone.`
     );
+    $('#delConfirm').textContent = cta;
     pendingDelete = onConfirm;
     deleteDialog.showModal();
     $('#delCancel').focus(); // the safe choice is focused first
@@ -1734,7 +1736,7 @@
       return;
     }
     setMenu(false, { returnFocus: true });
-    confirmDelete('all states and actions', () => {
+    confirmDelete('canvas', () => {
       wf.states = [];
       wf.actions = [];
       connectFrom = null;
@@ -1742,7 +1744,11 @@
       select(null);
       resetView();
       toast('Canvas cleared');
-    }, `The canvas has ${plural(wf.states.length, 'state')} and ${plural(wf.actions.length, 'action')}.`);
+    }, `This removes all ${plural(wf.states.length, 'state')} and ${plural(wf.actions.length, 'action')}.`, {
+      title: 'Proceed to clear canvas?',
+      question: 'Are you sure you want to clear the canvas?',
+      cta: 'Clear Canvas',
+    });
   });
 
 
