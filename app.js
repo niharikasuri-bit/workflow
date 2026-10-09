@@ -1125,8 +1125,8 @@
         disabled: !outs.length,
         onChange: (e) => { esc.actionId = e.target.value; commit(); },
       },
-      el('option', { value: '', selected: !esc.actionId }, outs.length ? 'Select an action' : 'No actions from this state yet'),
-      outs.map((a) => el('option', { value: a.id, selected: esc.actionId === a.id }, `${a.name} → ${stateById(a.to)?.name ?? ''}`))
+      el('option', { value: '', selected: !esc.actionId }, outs.length ? 'Select an action' : 'No actions yet'),
+      outs.map((a) => el('option', { value: a.id, selected: esc.actionId === a.id }, a.name))
     );
 
     return el(
