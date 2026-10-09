@@ -927,7 +927,7 @@
               s.type !== 'end'
                 ? section(
                     'SLA',
-                    { info: 'Service level agreement (SLA): the maximum time work can stay in this state before it is marked overdue.' },
+                    { info: 'Service level agreement (SLA) is the maximum time work can stay in this state before it is marked overdue.' },
                     stepper('SLA Time Hours', s.slaHours, (v) => { s.slaHours = v; commit(); })
                   )
                 : null,
