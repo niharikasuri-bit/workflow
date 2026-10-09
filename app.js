@@ -1600,6 +1600,8 @@
   viewport.addEventListener(
     'wheel',
     (e) => {
+      // Scrolling over the guide scrolls the guide, not the canvas zoom.
+      if (e.target.closest('.empty-guide') && !e.ctrlKey && !e.metaKey) return;
       e.preventDefault();
       if (e.ctrlKey || e.metaKey || Math.abs(e.deltaY) > Math.abs(e.deltaX)) {
         if (e.ctrlKey || e.metaKey || !e.shiftKey) {
