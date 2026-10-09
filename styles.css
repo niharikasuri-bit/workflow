@@ -987,3 +987,20 @@ button { cursor: pointer; }
 .menu__item.menu__item--danger[aria-disabled='true'],
 .menu__item.menu__item--danger[aria-disabled='true']:hover { color: var(--subtle); background: transparent; }
 .menu__item[aria-disabled='true'] .menu__hint { color: var(--subtle); }
+
+/* Delete confirmation popup */
+.modal.confirm {
+  width: min(560px, calc(100vw - 48px));
+  padding: 28px 32px 32px;
+  text-align: center;
+  position: fixed;
+}
+.modal.confirm[open] { display: flex; flex-direction: column; align-items: center; gap: 12px; }
+.confirm__close { position: absolute; top: 12px; right: 12px; }
+.confirm__close:hover { background: transparent; }
+.confirm__icon { display: grid; place-items: center; margin-top: 8px; }
+.confirm__title { font-size: 24px; line-height: 1.3; color: var(--secondary); overflow-wrap: anywhere; }
+.confirm__desc { margin: 0; font-size: 16px; line-height: 1.6; color: var(--text); overflow-wrap: anywhere; }
+.confirm__desc strong { font-weight: 700; }
+.confirm__actions { width: 100%; display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 16px; }
+.confirm__actions .btn { min-height: 44px; font-size: 16px; }

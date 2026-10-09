@@ -221,6 +221,22 @@
     </div>
   </dialog>
 
+  <!-- Delete confirmation: used for every delete -->
+  <dialog class="modal confirm" id="deleteDialog" aria-labelledby="delTitle" aria-describedby="delDesc">
+    <button type="button" class="icon-btn confirm__close" data-close aria-label="Close">
+      <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+    </button>
+    <div class="confirm__icon" aria-hidden="true">
+      <svg viewBox="0 0 48 44" width="56" height="52"><path d="M24 2L46 42H2z" fill="#b91900"/><rect x="21.5" y="15" width="5" height="15" rx="1.5" fill="#fff"/><circle cx="24" cy="35.5" r="2.8" fill="#fff"/></svg>
+    </div>
+    <h2 class="confirm__title" id="delTitle"></h2>
+    <p class="confirm__desc" id="delDesc"></p>
+    <div class="confirm__actions">
+      <button type="button" class="btn btn--secondary" data-close id="delCancel">Cancel</button>
+      <button type="button" class="btn btn--primary" id="delConfirm">Delete</button>
+    </div>
+  </dialog>
+
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
   <script src="app.js"></script>

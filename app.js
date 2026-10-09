@@ -195,11 +195,42 @@
     return action;
   }
 
+  /* Every delete goes through this popup:
+     Title "Proceed to delete "X"?", description, Cancel (secondary) / Delete (primary). */
+  const deleteDialog = $('#deleteDialog');
+  let pendingDelete = null;
+
+  function confirmDelete(name, onConfirm, extra = '') {
+    $('#delTitle').textContent = `Proceed to delete "${name}"?`;
+    $('#delDesc').replaceChildren(
+      'Are you sure you want to delete ',
+      el('strong', {}, `"${name}"`),
+      `? ${extra ? extra + ' ' : ''}This action cannot be undone.`
+    );
+    pendingDelete = onConfirm;
+    deleteDialog.showModal();
+    $('#delCancel').focus(); // the safe choice is focused first
+  }
+  $('#delConfirm').addEventListener('click', () => {
+    const run = pendingDelete;
+    pendingDelete = null;
+    deleteDialog.close();
+    run?.();
+  });
+  deleteDialog.querySelectorAll('[data-close]').forEach((b) => b.addEventListener('click', () => deleteDialog.close()));
+  deleteDialog.addEventListener('click', (e) => { if (e.target === deleteDialog) deleteDialog.close(); });
+  deleteDialog.addEventListener('close', () => { pendingDelete = null; });
+
   function deleteState(id) {
     const s = stateById(id);
     if (!s) return;
     const linked = wf.actions.filter((a) => a.from === id || a.to === id).length;
-    if (linked && !confirm(`Delete "${s.name}"? Its ${plural(linked, 'action')} will be deleted too.`)) return;
+    confirmDelete(s.name, () => removeState(id), linked ? `Its ${plural(linked, 'action')} will be deleted too.` : '');
+  }
+
+  function removeState(id) {
+    const s = stateById(id);
+    if (!s) return;
     wf.states = wf.states.filter((x) => x.id !== id);
     wf.actions = wf.actions.filter((a) => a.from !== id && a.to !== id);
     if (connectFrom === id) connectFrom = null;
@@ -209,6 +240,12 @@
   }
 
   function deleteAction(id) {
+    const a = actionById(id);
+    if (!a) return;
+    confirmDelete(a.name, () => removeAction(id));
+  }
+
+  function removeAction(id) {
     const a = actionById(id);
     if (!a) return;
     wf.actions = wf.actions.filter((x) => x.id !== id);
@@ -570,6 +607,7 @@
     const item = (text) => ({ text, done: !pending.has(text) });
     if (kind === 'action') return [item('Add at least one role who can take this action.')];
     const st = stateById(id);
+    if (!st) return []; // it was just deleted
     const list = [];
     if (st.type !== 'start') list.push(item('Connect an earlier state to this one.'));
     if (st.type !== 'end') list.push(item('Connect this state to the next state.'));
@@ -599,6 +637,7 @@
   function refreshTodoBox() {
     const body = $('.panel-body', inspector);
     if (!body || !selected) return;
+    if (!(selected.kind === 'state' ? stateById(selected.id) : actionById(selected.id))) return;
     const next = todoBox(selected.kind, selected.id);
     const current = $('.todo-box', body);
     if (current && next) current.replaceWith(next);
@@ -1005,12 +1044,12 @@
         }, icon('M4 20h16M14.5 4.5l3 3L9 16H6v-3z', 18)),
         el('button', {
           type: 'button', class: 'logic-item__btn', 'aria-label': `Delete ${item.name}`, title: 'Delete',
-          onClick: () => {
+          onClick: () => confirmDelete(item.name, () => {
             data.items = data.items.filter((x) => x.id !== item.id);
             commit();
             renderInspector();
             toast(`${item.name} deleted`);
-          },
+          }),
         }, icon('M5 4h14v16H5zM9.5 9.5l5 5M14.5 9.5l-5 5', 18))
       );
     };
@@ -1335,13 +1374,13 @@
           }, icon('M4 20h16M14.5 4.5l3 3L9 16H6v-3z', 18)),
           el('button', {
             type: 'button', class: 'logic-item__btn', 'aria-label': `Delete ${item.name}`, title: 'Delete',
-            onClick: () => {
+            onClick: () => confirmDelete(item.name, () => {
               data.item = null;
               commit();
               renderInspector();
               $('[data-add="checklist"]', inspector)?.focus();
               toast(`${item.name} deleted`);
-            },
+            }),
           }, icon('M5 4h14v16H5zM9.5 9.5l5 5M14.5 9.5l-5 5', 18))
         )
       );
@@ -1598,7 +1637,7 @@
   const isTyping = (t) => t.closest('input, textarea, select, [contenteditable]');
 
   document.addEventListener('keydown', (e) => {
-    if ($('#configDialog').open || $('#helpDialog').open) return;
+    if ($('#configDialog').open || $('#helpDialog').open || deleteDialog.open) return;
     if (e.key === 'Escape') {
       if (connectFrom) cancelConnect();
       else if (issuesOpen) closeIssues();
@@ -1695,26 +1734,15 @@
       return;
     }
     setMenu(false, { returnFocus: true });
-    const count = `${plural(wf.states.length, 'state')} and ${plural(wf.actions.length, 'action')}`;
-    if (!confirm(`Clear the canvas? This removes ${count}.`)) return;
-    const snapshot = { states: wf.states, actions: wf.actions };
-    wf.states = [];
-    wf.actions = [];
-    connectFrom = null;
-    commit();
-    select(null);
-    resetView();
-    toast('Canvas cleared', {
-      label: 'Undo',
-      run: () => {
-        wf.states = snapshot.states;
-        wf.actions = snapshot.actions;
-        commit();
-        select(null);
-        resetView();
-        toast('Workflow restored');
-      },
-    });
+    confirmDelete('all states and actions', () => {
+      wf.states = [];
+      wf.actions = [];
+      connectFrom = null;
+      commit();
+      select(null);
+      resetView();
+      toast('Canvas cleared');
+    }, `The canvas has ${plural(wf.states.length, 'state')} and ${plural(wf.actions.length, 'action')}.`);
   });
 
 
