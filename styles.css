@@ -1004,3 +1004,14 @@ button { cursor: pointer; }
 .confirm__desc strong { font-weight: 700; }
 .confirm__actions { width: 100%; display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 16px; }
 .confirm__actions .btn { min-height: 44px; font-size: 16px; }
+
+/* Compact delete popup */
+.modal.confirm { width: min(420px, calc(100vw - 32px)); padding: 20px 24px 20px; }
+.modal.confirm[open] { gap: 8px; }
+.confirm__close { top: 8px; right: 8px; width: 32px; height: 32px; }
+.confirm__icon { margin-top: 4px; }
+.confirm__title { font-size: 18px; line-height: 1.35; }
+.confirm__desc { font-size: 14px; line-height: 1.5; color: var(--muted); }
+.confirm__desc strong { color: var(--text); }
+.confirm__actions { gap: 12px; margin-top: 12px; }
+.confirm__actions .btn { min-height: 40px; font-size: 14px; }
