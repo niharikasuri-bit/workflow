@@ -207,7 +207,8 @@
       ...(question
         ? [question]
         : [`Are you sure you want to delete ${what}`, el('strong', {}, `"${name}"`), '?']),
-      ` ${extra ? extra + ' ' : ''}This action cannot be undone.`
+      // extra may be a string or an array of strings/nodes (for bold parts)
+      ' ', ...(extra ? [].concat(extra, ' ') : []), 'This action cannot be undone.'
     );
     $('#delConfirm').textContent = cta;
     pendingDelete = onConfirm;
@@ -1747,7 +1748,7 @@
       select(null);
       resetView();
       toast('Canvas cleared');
-    }, `This removes all ${plural(wf.states.length, 'state')} and ${plural(wf.actions.length, 'action')}.`, {
+    }, ['This removes all ', el('strong', {}, plural(wf.states.length, 'state')), ' and ', el('strong', {}, plural(wf.actions.length, 'action')), '.'], {
       title: 'Proceed to clear canvas?',
       question: 'Are you sure you want to clear the canvas?',
       cta: 'Clear Canvas',
