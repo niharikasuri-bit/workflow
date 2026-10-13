@@ -960,7 +960,7 @@
         el(
           'div',
           { class: 'danger-zone' },
-          el('button', { type: 'button', class: 'btn btn--danger btn--block', onClick: () => deleteState(s.id) }, icon(ICONS.trash), 'Delete State')
+          el('button', { type: 'button', class: 'btn btn--secondary btn--block', onClick: () => deleteState(s.id) }, icon(ICONS.trash), 'Delete State')
         )
       ),
     ];
@@ -1531,7 +1531,7 @@
           { info: 'Extra permissions that control what people can do when they take this action.' },
           actionSettingsCard(a)
         ),
-        el('div', { class: 'danger-zone' }, el('button', { type: 'button', class: 'btn btn--danger btn--block', onClick: () => deleteAction(a.id) }, icon(ICONS.trash), 'Delete Action'))
+        el('div', { class: 'danger-zone' }, el('button', { type: 'button', class: 'btn btn--secondary btn--block', onClick: () => deleteAction(a.id) }, icon(ICONS.trash), 'Delete Action'))
       ),
     ];
   }
