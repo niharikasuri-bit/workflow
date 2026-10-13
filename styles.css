@@ -403,6 +403,8 @@ button { cursor: pointer; }
 .field { display: grid; gap: 6px; }
 .field > label, .field__label { font-weight: 500; font-size: 13px; }
 .position-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.position-fields .input { min-width: 0; }
+.position-fields .input-suffix span { font-weight: 500; }
 .field__hint { font-size: 12px; color: var(--muted); line-height: 1.4; }
 .field__error { font-size: 12px; color: var(--error); font-weight: 500; }
 .input, .select, .textarea {
@@ -1063,3 +1065,14 @@ button { cursor: pointer; }
   .toast { bottom: 16px; max-width: calc(100vw - 32px); }
   .modal { width: calc(100vw - 16px); max-height: calc(100vh - 16px); }
 }
+
+/* Number + unit (X- Axis / Y- Axis): hover and focus treat the input and its "px" box as one field */
+.input-suffix { border-radius: 4px; }
+.input-suffix:hover .input,
+.input-suffix:hover span { border-color: var(--primary); }
+.input-suffix:focus-within { box-shadow: var(--focus); }
+.input-suffix .input:focus-visible { box-shadow: none; }
+.input-suffix span { cursor: text; }
+.input-suffix input[type='number'] { appearance: textfield; -moz-appearance: textfield; }
+.input-suffix input[type='number']::-webkit-inner-spin-button,
+.input-suffix input[type='number']::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }

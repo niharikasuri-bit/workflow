@@ -940,6 +940,7 @@
         { class: 'panel-body' },
         todoBox('state', s.id),
         section(null, {}, field('State Name', nameInputEl, null, { required: true })),
+        positionSection(s),
         // A start state only picks its form; the other settings apply to later states.
         ...(s.type === 'start'
           ? [formSection(s)]
@@ -956,7 +957,6 @@
               toggleSection(s, 'payment'),
               s.type !== 'end' ? escalationSection(s) : null,
             ]),
-        positionSection(s),
         el(
           'div',
           { class: 'danger-zone' },
@@ -968,34 +968,37 @@
 
   /* Position: typing X and Y moves a state without dragging (WCAG 2.5.7). */
   function positionSection(s) {
-    const coord = (axis) =>
-      field(
-        axis.toUpperCase(),
-        el('input', {
-          class: 'input',
-          type: 'number',
-          step: GRID,
-          value: s[axis],
-          id: `pos-${axis}`,
-          inputmode: 'numeric',
-          onChange: (e) => {
-            const n = Number(e.target.value);
-            if (e.target.value === '' || !Number.isFinite(n)) {
-              e.target.value = s[axis];
-              return;
-            }
-            s[axis] = snap(n);
+    const coord = (axis) => {
+      const id = `pos-${axis}`;
+      const input = el('input', {
+        class: 'input',
+        type: 'number',
+        step: GRID,
+        value: s[axis],
+        id,
+        inputmode: 'numeric',
+        'aria-describedby': `${id}-unit`,
+        onChange: (e) => {
+          const n = Number(e.target.value);
+          if (e.target.value === '' || !Number.isFinite(n)) {
             e.target.value = s[axis];
-            commit();
-            ensureVisible(s);
-          },
-        })
+            return;
+          }
+          s[axis] = snap(n);
+          e.target.value = s[axis];
+          commit();
+          ensureVisible(s);
+        },
+      });
+      return el(
+        'div',
+        { class: 'field' },
+        el('label', { htmlFor: id }, `${axis.toUpperCase()}- Axis`),
+        el('div', { class: 'input-suffix' }, input, el('span', { id: `${id}-unit`, onClick: () => input.focus() }, 'px'))
       );
-    return section(
-      'Position',
-      { info: 'Where the state sits on the canvas, in pixels from the top left. Type a number to move it, or drag the state on the canvas.' },
-      el('div', { class: 'position-fields' }, coord('x'), coord('y'))
-    );
+    };
+    // No visible heading; the group name gives screen readers the same context.
+    return section(null, {}, el('div', { class: 'position-fields', role: 'group', 'aria-label': 'Position' }, coord('x'), coord('y')));
   }
 
   /** Keeps the X and Y fields in step when a state is dragged or moved with the arrow keys. */
