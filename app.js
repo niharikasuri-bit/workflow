@@ -1559,7 +1559,7 @@
 
     if (g.kind === 'pan') {
       if (!g.moved) {
-        if (connectFrom) cancelConnect();
+        if (connectFrom) addConnectedState(connectFrom, e.clientX, e.clientY);
         else if (selected) select(null);
       }
     } else if (g.kind === 'node') {
@@ -1576,7 +1576,9 @@
       ghostEdge.setAttribute('hidden', '');
       if (g.moved) {
         const over = document.elementFromPoint(e.clientX, e.clientY)?.closest('.node');
+        const target = document.elementFromPoint(e.clientX, e.clientY);
         if (over && over.dataset.id !== g.id) finishConnect(g.id, over.dataset.id);
+        else if (!over && target && viewport.contains(target) && !target.closest('.edge-label, .nudge-bar')) addConnectedState(g.id, e.clientX, e.clientY);
         else renderCanvas();
       } else {
         startConnect(g.id);
@@ -1617,6 +1619,23 @@
     } else {
       renderCanvas();
     }
+  }
+
+  // Dropping the + on empty canvas (or clicking + then empty canvas) adds a connected intermediate state there.
+  function addConnectedState(fromId, clientX, clientY) {
+    connectFrom = null;
+    ghostEdge.setAttribute('hidden', '');
+    const p = toWorld(clientX, clientY);
+    const used = new Set(wf.states.map((st) => st.name));
+    let n = wf.states.filter((st) => st.type === 'intermediate').length + 1;
+    while (used.has(`State ${n}`)) n++;
+    const state = { id: uid('s'), type: 'intermediate', name: `State ${n}`, description: '', slaHours: 24, x: snap(p.x), y: snap(p.y - NODE_H / 2) };
+    wf.states.push(state);
+    const a = addAction(fromId, state.id);
+    if (!a) return commit();
+    select('action', a.id, { focusName: true });
+    ensureVisible(state);
+    toast(`${TYPES.intermediate.name} added and connected. Name the action and add roles.`);
   }
 
   function drawGhost(fromId, clientX, clientY) {
