@@ -106,6 +106,7 @@
   const world = $('#world');
   const nodesLayer = $('#nodes');
   const labelsLayer = $('#labels');
+  const nudgeLayer = $('#nudges');
   const edgeGroup = $('#edgeGroup');
   const ghostEdge = $('#ghostEdge');
   const statsEl = $('#stats');
@@ -145,7 +146,8 @@
     commit();
     select('state', state.id, { focusName: true });
     ensureVisible(state);
-    toast(`${TYPES[type].name} added`);
+    // Dragging is the main way to move a state; the arrows under it are the alternative.
+    toast(`${TYPES[type].name} added. Drag it to place it, or use the arrows below it.`);
   }
 
   function nextSlot(type) {
@@ -366,6 +368,7 @@
   function renderCanvas() {
     const focusedId = document.activeElement?.closest?.('.node')?.dataset.id;
     const focusedAction = document.activeElement?.closest?.('.edge-label')?.dataset.action;
+    const focusedNudge = document.activeElement?.closest?.('.nudge')?.dataset.dir;
 
     nodesLayer.replaceChildren(...wf.states.map(nodeEl));
     renderEdges();
@@ -385,6 +388,8 @@
 
     if (focusedId) nodesLayer.querySelector(`[data-id="${focusedId}"]`)?.focus();
     if (focusedAction) labelsLayer.querySelector(`[data-action="${focusedAction}"]`)?.focus();
+    renderNudges();
+    if (focusedNudge) nudgeLayer.querySelector(`[data-dir="${focusedNudge}"]`)?.focus();
   }
 
   /** The same icons as the left panel: play (start), route (intermediate), square (end). */
@@ -1498,7 +1503,7 @@
     const handle = e.target.closest('.node__handle');
     const node = e.target.closest('.node');
     const edge = e.target.closest('.edge');
-    if (e.target.closest('.edge-label, .empty')) return;
+    if (e.target.closest('.edge-label, .empty, .nudge-bar')) return;
 
     if (handle && node) {
       e.preventDefault();
@@ -1537,6 +1542,7 @@
       gesture.el.style.left = `${s.x}px`;
       gesture.el.style.top = `${s.y}px`;
       renderEdges();
+      nudgeLayer.classList.add('is-dragging'); // out of the way while dragging
     } else if (gesture.kind === 'connect') {
       drawGhost(gesture.id, e.clientX, e.clientY);
       nodesLayer.querySelectorAll('.is-drop-target').forEach((n) => n.classList.remove('is-drop-target'));
@@ -1559,6 +1565,8 @@
     } else if (g.kind === 'node') {
       if (g.moved) {
         g.el.classList.remove('is-dragging');
+        nudgeLayer.classList.remove('is-dragging');
+        placeNudges(stateById(g.id));
         save();
         renderEdges();
       } else {
@@ -1641,6 +1649,107 @@
     },
     { passive: false }
   );
+
+  /* ================= Nudge arrows =================
+     One small row of arrows under the selected state, clear of the + handle. Each click moves it one step,
+     the same as the arrow keys: a way to move a state without dragging (WCAG 2.5.7). */
+  const NUDGE_STEP = GRID * 2;
+  const NUDGES = [
+    // Solid direction triangles: shaft arrows (↑ ↓) read as upload / download
+    { dir: 'left', label: 'left', dx: -1, dy: 0, d: 'M15.5 6.5v11L7 12z' },
+    { dir: 'up', label: 'up', dx: 0, dy: -1, d: 'M6.5 15.5h11L12 7z' },
+    { dir: 'down', label: 'down', dx: 0, dy: 1, d: 'M6.5 8.5h11L12 17z' },
+    { dir: 'right', label: 'right', dx: 1, dy: 0, d: 'M8.5 6.5v11L17 12z' },
+  ];
+
+  // Press and hold an arrow to keep moving (still not a drag, so it stays within WCAG 2.5.7).
+  let nudgeHold = null;
+  let skipNudgeClick = false; // the release after a hold should not add one more step
+  function stopNudgeHold() {
+    if (!nudgeHold) return;
+    skipNudgeClick = nudgeHold.repeated;
+    clearTimeout(nudgeHold.wait);
+    clearInterval(nudgeHold.repeat);
+    nudgeHold = null;
+  }
+  window.addEventListener('pointerup', stopNudgeHold);
+  window.addEventListener('pointercancel', stopNudgeHold);
+
+  /** One step, or five with Shift (like Shift + arrow keys); the canvas follows if the state leaves the view. */
+  function nudge(s, n, big) {
+    const step = big ? NUDGE_STEP * 5 : NUDGE_STEP;
+    s.x += n.dx * step;
+    s.y += n.dy * step;
+    commit();
+    ensureVisible(s);
+  }
+
+  let nudgesFor = null; // fade in only when a new state is selected, not on every step
+  let nudgesShownAt = 0;
+  /** Filled triangle icon for a nudge button. */
+  function triangle(d) {
+    const svg = svgEl('svg', { viewBox: '0 0 24 24', width: 16, height: 16, 'aria-hidden': 'true' });
+    svg.append(svgEl('path', { d, fill: 'currentColor', stroke: 'currentColor', 'stroke-width': '1.5', 'stroke-linejoin': 'round' }));
+    return svg;
+  }
+
+  function renderNudges() {
+    const s = selected?.kind === 'state' && !connectFrom ? stateById(selected.id) : null;
+    if (!s) {
+      nudgeLayer.replaceChildren();
+      nudgesFor = null;
+      return;
+    }
+    if (nudgesFor !== s.id) nudgesShownAt = performance.now();
+    const isNew = performance.now() - nudgesShownAt < 150; // selecting re-renders twice; keep the fade through both
+    nudgesFor = s.id;
+    const name = s.name || 'state';
+    nudgeLayer.replaceChildren(
+      el(
+        'div',
+        { class: `nudge-bar${isNew ? ' is-new' : ''}`, role: 'group', 'aria-label': `Move ${name}`, title: 'Move state (or drag it)' },
+        ...NUDGES.map((n) =>
+          el(
+            'button',
+            {
+              type: 'button',
+              class: `nudge nudge--${n.dir}`,
+              'data-dir': n.dir,
+              'aria-label': `Move ${name} ${n.label}`,
+              title: `Move ${n.label}. Hold to keep moving, Shift for bigger steps`,
+              onPointerdown: (e) => {
+                if (e.button !== 0) return;
+                stopNudgeHold();
+                nudgeHold = {
+                  repeated: false,
+                  wait: setTimeout(() => {
+                    nudgeHold.repeated = true;
+                    nudgeHold.repeat = setInterval(() => nudge(s, n, e.shiftKey), 70);
+                  }, 350),
+                };
+              },
+              onClick: (e) => {
+                if (e.detail && skipNudgeClick) {
+                  skipNudgeClick = false;
+                  return;
+                }
+                skipNudgeClick = false;
+                nudge(s, n, e.shiftKey);
+              },
+            },
+            triangle(n.d)
+          )
+        )
+      )
+    );
+    placeNudges(s);
+  }
+
+  /** The row sits in a box the size of the state, so it moves with it. */
+  function placeNudges(s) {
+    nudgeLayer.style.left = `${s.x}px`;
+    nudgeLayer.style.top = `${s.y}px`;
+  }
 
   /* ================= Keyboard ================= */
   function onNodeKey(e, s) {
@@ -1911,7 +2020,7 @@
     toastEl.classList.add('is-visible');
     toastEl.classList.toggle('has-action', !!action);
     clearTimeout(toastTimer);
-    toastTimer = setTimeout(hide, action ? 8000 : 2800);
+    toastTimer = setTimeout(hide, action ? 8000 : Math.max(2800, message.length * 60)); // longer messages stay long enough to read
   }
 
   /* ================= Init ================= */

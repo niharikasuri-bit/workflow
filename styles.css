@@ -1073,3 +1073,25 @@ button { cursor: pointer; }
 .input-suffix input[type='number'] { appearance: textfield; -moz-appearance: textfield; }
 .input-suffix input[type='number']::-webkit-inner-spin-button,
 .input-suffix input[type='number']::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+
+/* Nudge arrows under the selected state: "Move" label + four bordered arrow buttons */
+.nudges { position: absolute; left: 0; top: 0; width: 208px; height: 72px; pointer-events: none; z-index: 3; }
+.nudge-bar {
+  position: absolute; left: 50%; top: calc(100% + 10px); transform: translateX(-50%);
+  display: flex; align-items: center; gap: 4px; pointer-events: auto;
+  padding: 4px;
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+  box-shadow: var(--shadow); /* white panel, so the label is not lost in the canvas dots */
+}
+.nudge {
+  width: 28px; height: 28px; padding: 0;
+  display: grid; place-items: center;
+  background: var(--surface); color: var(--primary);
+  border: 1px solid var(--primary); border-radius: 4px;
+}
+.nudge:hover { background: var(--primary-bg); color: var(--primary-hover); border-color: var(--primary-hover); }
+.nudge:active { background: #f6dccf; } /* pressed: darker tint while held */
+.nudges.is-dragging { visibility: hidden; }
+.nudge-bar.is-new { animation: nudge-in 0.15s ease-out; }
+@keyframes nudge-in { from { opacity: 0; transform: translate(-50%, -4px); } to { opacity: 1; transform: translate(-50%, 0); } }
+@media (prefers-reduced-motion: reduce) { .nudge-bar.is-new { animation: none; } }
