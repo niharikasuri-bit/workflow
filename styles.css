@@ -402,9 +402,6 @@ button { cursor: pointer; }
 
 .field { display: grid; gap: 6px; }
 .field > label, .field__label { font-weight: 500; font-size: 13px; }
-.position-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-.position-fields .input { min-width: 0; }
-.position-fields .input-suffix span { font-weight: 500; }
 .field__hint { font-size: 12px; color: var(--muted); line-height: 1.4; }
 .field__error { font-size: 12px; color: var(--error); font-weight: 500; }
 .input, .select, .textarea {
@@ -550,7 +547,7 @@ button { cursor: pointer; }
 .canvas__actions { display: flex; align-items: center; gap: 8px; }
 
 /* Issue marker on a state */
-.node.has-issue { border-color: #e0a84a; }
+.node.has-issue { border-color: var(--warning); } /* #9E5F00 */
 .node__issue {
   position: absolute; top: -9px; right: 18px;
   width: 20px; height: 20px; border-radius: 50%;
@@ -851,7 +848,7 @@ button { cursor: pointer; }
   display: grid; gap: 8px;
   padding: 12px 14px;
   background: var(--warning-bg);
-  border-left: 4px solid #e0a84a;
+  border-left: 4px solid var(--warning); /* #9E5F00 */
   border-radius: 4px;
 }
 .todo-box__title { font-size: 14px; color: var(--text); }
@@ -1066,7 +1063,7 @@ button { cursor: pointer; }
   .modal { width: calc(100vw - 16px); max-height: calc(100vh - 16px); }
 }
 
-/* Number + unit (X- Axis / Y- Axis): hover and focus treat the input and its "px" box as one field */
+/* Number + unit fields: hover and focus treat the input and its unit box as one field */
 .input-suffix { border-radius: 4px; }
 .input-suffix:hover .input,
 .input-suffix:hover span { border-color: var(--primary); }

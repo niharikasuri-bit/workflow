@@ -120,7 +120,6 @@
     renderCanvas();
     renderStats();
     refreshTodoBox();
-    syncPositionFields();
   }
 
 
@@ -940,7 +939,6 @@
         { class: 'panel-body' },
         todoBox('state', s.id),
         section(null, {}, field('State Name', nameInputEl, null, { required: true })),
-        positionSection(s),
         // A start state only picks its form; the other settings apply to later states.
         ...(s.type === 'start'
           ? [formSection(s)]
@@ -964,51 +962,6 @@
         )
       ),
     ];
-  }
-
-  /* Position: typing X and Y moves a state without dragging (WCAG 2.5.7). */
-  function positionSection(s) {
-    const coord = (axis) => {
-      const id = `pos-${axis}`;
-      const input = el('input', {
-        class: 'input',
-        type: 'number',
-        step: GRID,
-        value: s[axis],
-        id,
-        inputmode: 'numeric',
-        'aria-describedby': `${id}-unit`,
-        onChange: (e) => {
-          const n = Number(e.target.value);
-          if (e.target.value === '' || !Number.isFinite(n)) {
-            e.target.value = s[axis];
-            return;
-          }
-          s[axis] = snap(n);
-          e.target.value = s[axis];
-          commit();
-          ensureVisible(s);
-        },
-      });
-      return el(
-        'div',
-        { class: 'field' },
-        el('label', { htmlFor: id }, `${axis.toUpperCase()}- Axis`),
-        el('div', { class: 'input-suffix' }, input, el('span', { id: `${id}-unit`, onClick: () => input.focus() }, 'px'))
-      );
-    };
-    // No visible heading; the group name gives screen readers the same context.
-    return section(null, {}, el('div', { class: 'position-fields', role: 'group', 'aria-label': 'Position' }, coord('x'), coord('y')));
-  }
-
-  /** Keeps the X and Y fields in step when a state is dragged or moved with the arrow keys. */
-  function syncPositionFields() {
-    const s = selected?.kind === 'state' && stateById(selected.id);
-    if (!s) return;
-    for (const axis of ['x', 'y']) {
-      const input = $(`#pos-${axis}`, inspector);
-      if (input && input !== document.activeElement) input.value = s[axis];
-    }
   }
 
   /** Empty list placeholder: a visible tray with an icon, so it reads as a container, not body text. */
@@ -1608,7 +1561,6 @@
         g.el.classList.remove('is-dragging');
         save();
         renderEdges();
-        syncPositionFields();
       } else {
         activateNode(g.id);
       }
