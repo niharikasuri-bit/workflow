@@ -109,8 +109,6 @@
   const nudgeLayer = $('#nudges');
   const edgeGroup = $('#edgeGroup');
   const ghostEdge = $('#ghostEdge');
-  const connectBar = $('#connectBar');
-  const connectBarText = $('#connectBarText');
   const statsEl = $('#stats');
   const inspector = $('#inspector');
   const emptyState = $('#emptyState');
@@ -378,9 +376,6 @@
     emptyState.hidden = wf.states.length > 0;
     $('#clearBtn').setAttribute('aria-disabled', String(wf.states.length === 0));
     viewport.classList.toggle('is-connecting', !!connectFrom);
-    const connectSource = connectFrom && stateById(connectFrom);
-    connectBar.hidden = !connectSource;
-    if (connectSource) connectBarText.textContent = `Click the state that "${connectSource.name || 'Untitled state'}" should connect to.`;
 
     // Palette: one start state per workflow.
     const startBtn = $('.palette-item[data-type="start"]');
@@ -458,7 +453,7 @@
             onMouseleave: () => hideTip(100),
           }, issueMark())
         : null,
-      s.type !== 'end' ? el('span', { class: 'node__handle', title: 'Drag to another state to connect, or click here and then click the next state', 'aria-hidden': 'true' }) : null
+      s.type !== 'end' ? el('span', { class: 'node__handle', title: 'Drag to another state to connect, or click then pick a state', 'aria-hidden': 'true' }) : null
     );
     node.addEventListener('keydown', (e) => onNodeKey(e, s));
     if (nodeIssues.length) {
@@ -1605,8 +1600,6 @@
     connectFrom = id;
     renderCanvas();
   }
-
-  $('#connectCancel').addEventListener('click', () => cancelConnect());
 
   function cancelConnect() {
     connectFrom = null;

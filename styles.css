@@ -374,17 +374,6 @@ button { cursor: pointer; }
 .zoom__label:hover { background: var(--surface-3); }
 .zoom__divider { width: 1px; height: 22px; background: var(--border); margin: 0 4px; }
 
-/* ===== Connect bar (click-to-connect instructions, WCAG 2.5.7) ===== */
-.connect-bar {
-  position: absolute; left: 50%; top: 64px; transform: translateX(-50%); z-index: 6;
-  display: flex; align-items: center; gap: 16px; max-width: calc(100% - 32px);
-  padding: 6px 6px 6px 16px; background: var(--surface);
-  border: 1px solid var(--primary); border-radius: var(--radius); box-shadow: var(--shadow);
-  font-size: 14px; color: var(--text);
-}
-.connect-bar[hidden] { display: none; }
-.connect-bar__cancel { height: 32px; flex: none; }
-
 /* ===== Inspector ===== */
 .panel-head {
   position: sticky; top: 0; z-index: 1;
