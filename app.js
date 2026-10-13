@@ -50,6 +50,12 @@
     s.append(svgEl('path', { d, fill: 'none', stroke: 'currentColor', 'stroke-width': '2', 'stroke-linecap': 'round', 'stroke-linejoin': 'round' }));
     return s;
   };
+  /** A drawn "!" (not text), so a state's visible text matches its spoken name (WCAG 2.5.3). */
+  const issueMark = () => {
+    const s = icon('M12 6v7.5M12 18v.01', 14);
+    s.firstChild.setAttribute('stroke-width', '3.4');
+    return s;
+  };
   const ICONS = {
     close: 'M6 6l12 12M18 6L6 18',
     trash: 'M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3',
@@ -82,7 +88,7 @@
   }
   let saveTimer;
   function save() {
-    $('#savedNote').hidden = true;
+    $('#savedNote').replaceChildren();
     clearTimeout(saveTimer);
     saveTimer = setTimeout(() => {
       try { localStorage.setItem(STORAGE_KEY, JSON.stringify(wf)); } catch { /* storage unavailable */ }
@@ -114,6 +120,7 @@
     renderCanvas();
     renderStats();
     refreshTodoBox();
+    syncPositionFields();
   }
 
 
@@ -279,6 +286,7 @@
     viewport.style.backgroundSize = `${g}px ${g}px`;
     viewport.style.backgroundPosition = `${view.x}px ${view.y}px`;
     zoomLabel.textContent = `${Math.round(view.zoom * 100)}%`;
+    zoomLabel.setAttribute('aria-label', `${zoomLabel.textContent}, reset zoom to 100%`);
     $('#zoomInBtn').disabled = view.zoom >= MAX_ZOOM;
     $('#zoomOutBtn').disabled = view.zoom <= MIN_ZOOM;
   }
@@ -358,6 +366,7 @@
   /* ================= Canvas rendering ================= */
   function renderCanvas() {
     const focusedId = document.activeElement?.closest?.('.node')?.dataset.id;
+    const focusedAction = document.activeElement?.closest?.('.edge-label')?.dataset.action;
 
     nodesLayer.replaceChildren(...wf.states.map(nodeEl));
     renderEdges();
@@ -369,10 +378,14 @@
     // Palette: one start state per workflow.
     const startBtn = $('.palette-item[data-type="start"]');
     const hasStart = !!startState();
-    startBtn.disabled = hasStart;
-    startBtn.title = hasStart ? 'A workflow has one start state' : '';
+    // aria-disabled (not disabled) keeps it focusable, so the reason below is reachable by keyboard.
+    startBtn.setAttribute('aria-disabled', String(hasStart));
+    startBtn.querySelector('.palette-item__desc').textContent = hasStart
+      ? 'Already on the canvas. A workflow has one start state.'
+      : 'This is where the workflow starts.';
 
     if (focusedId) nodesLayer.querySelector(`[data-id="${focusedId}"]`)?.focus();
+    if (focusedAction) labelsLayer.querySelector(`[data-action="${focusedAction}"]`)?.focus();
   }
 
   /** The same icons as the left panel: play (start), route (intermediate), square (end). */
@@ -416,7 +429,7 @@
         role: 'button',
         tabIndex: 0,
         'aria-pressed': String(isSel),
-        'aria-label': `${TYPES[s.type].name}: ${s.name}. ${outs} out, ${ins} in.${nodeIssues.length ? ` Required: ${nodeIssues.map((i) => i.todo || i.title).join(' ')}` : ''} Arrow keys move it, C connects it.`,
+        'aria-label': `${TYPES[s.type].label} ${s.name || 'Untitled state'}. ${outs} out, ${ins} in.${nodeIssues.length ? ` Required: ${nodeIssues.map((i) => i.todo || i.title).join(' ')}` : ''} Arrow keys move it, C connects it.`,
         style: `left:${s.x}px;top:${s.y}px`,
       },
       el('span', { class: 'node__icon', 'aria-hidden': 'true' }, stateIcon(s.type)),
@@ -424,6 +437,7 @@
         'span',
         { class: 'node__body' },
         el('span', { class: 'node__type' }, TYPES[s.type].label),
+        ' ', // keeps "Intermediate State 1" as separate words for voice control (WCAG 2.5.3)
         el('span', { class: 'node__name', title: s.name }, s.name || 'Untitled state')
       ),
       nodeIssues.length
@@ -433,11 +447,16 @@
             'data-tip': nodeIssues.map((i) => i.todo || i.title).join('\n'),
             onMouseenter: (e) => showTip(e.currentTarget),
             onMouseleave: () => hideTip(100),
-          }, '!')
+          }, issueMark())
         : null,
       s.type !== 'end' ? el('span', { class: 'node__handle', title: 'Drag to another state to connect, or click then pick a state', 'aria-hidden': 'true' }) : null
     );
     node.addEventListener('keydown', (e) => onNodeKey(e, s));
+    if (nodeIssues.length) {
+      // Keyboard users see the same "!" tooltip as mouse users.
+      node.addEventListener('focus', () => node.matches(':focus-visible') && showTip(node.querySelector('.node__issue')));
+      node.addEventListener('blur', () => hideTip());
+    }
     return node;
   }
 
@@ -937,9 +956,56 @@
               toggleSection(s, 'payment'),
               s.type !== 'end' ? escalationSection(s) : null,
             ]),
-        el('div', { class: 'danger-zone' }, el('button', { type: 'button', class: 'btn btn--danger btn--block', onClick: () => deleteState(s.id) }, icon(ICONS.trash), 'Delete State'))
+        positionSection(s),
+        el(
+          'div',
+          { class: 'danger-zone' },
+          el('button', { type: 'button', class: 'btn btn--danger btn--block', onClick: () => deleteState(s.id) }, icon(ICONS.trash), 'Delete State')
+        )
       ),
     ];
+  }
+
+  /* Position: typing X and Y moves a state without dragging (WCAG 2.5.7). */
+  function positionSection(s) {
+    const coord = (axis) =>
+      field(
+        axis.toUpperCase(),
+        el('input', {
+          class: 'input',
+          type: 'number',
+          step: GRID,
+          value: s[axis],
+          id: `pos-${axis}`,
+          inputmode: 'numeric',
+          onChange: (e) => {
+            const n = Number(e.target.value);
+            if (e.target.value === '' || !Number.isFinite(n)) {
+              e.target.value = s[axis];
+              return;
+            }
+            s[axis] = snap(n);
+            e.target.value = s[axis];
+            commit();
+            ensureVisible(s);
+          },
+        })
+      );
+    return section(
+      'Position',
+      { info: 'Where the state sits on the canvas, in pixels from the top left. Type a number to move it, or drag the state on the canvas.' },
+      el('div', { class: 'position-fields' }, coord('x'), coord('y'))
+    );
+  }
+
+  /** Keeps the X and Y fields in step when a state is dragged or moved with the arrow keys. */
+  function syncPositionFields() {
+    const s = selected?.kind === 'state' && stateById(selected.id);
+    if (!s) return;
+    for (const axis of ['x', 'y']) {
+      const input = $(`#pos-${axis}`, inspector);
+      if (input && input !== document.activeElement) input.value = s[axis];
+    }
   }
 
   /** Empty list placeholder: a visible tray with an icon, so it reads as a container, not body text. */
@@ -1225,10 +1291,10 @@
     return el(
       'div',
       { class: 'inner-card inner-card--muted' },
-        el('div', { class: 'inner-card__head' }, el('h5', { class: 'inner-card__title', id: 'rolesListTitle' }, 'Roles for this action')),
+        el('div', { class: 'inner-card__head' }, el('h4', { class: 'inner-card__title', id: 'rolesListTitle' }, 'Roles for this action')),
         el(
           'ul',
-          { class: 'role-list', role: 'group', 'aria-labelledby': 'rolesListTitle' },
+          { class: 'role-list', 'aria-labelledby': 'rolesListTitle' },
           all.map((r) =>
             el(
               'li',
@@ -1311,7 +1377,7 @@
       el(
         'div',
         { class: 'inner-card inner-card--muted' },
-        el('div', { class: 'inner-card__head' }, el('h5', { class: 'inner-card__title' }, 'Form for this state')),
+        el('div', { class: 'inner-card__head' }, el('h4', { class: 'inner-card__title' }, 'Form for this state')),
         el('ul', { class: 'logic-list' }, el('li', { class: 'logic-item' }, el('span', { class: 'logic-item__name' }, form.name)))
       )
     );
@@ -1487,6 +1553,7 @@
     } else if (edge) {
       select('action', edge.dataset.id);
     } else {
+      viewport.focus({ preventScroll: true }); // canvas keyboard shortcuts work while the canvas has focus
       gesture = { kind: 'pan', sx: e.clientX, sy: e.clientY, ox: view.x, oy: view.y, moved: false };
     }
   });
@@ -1538,6 +1605,7 @@
         g.el.classList.remove('is-dragging');
         save();
         renderEdges();
+        syncPositionFields();
       } else {
         activateNode(g.id);
       }
@@ -1656,6 +1724,8 @@
       e.preventDefault();
       if (selected.kind === 'action') deleteAction(selected.id);
       else deleteState(selected.id);
+    } else if (!e.target.closest('.canvas')) {
+      // Single-key zoom shortcuts only work while focus is in the canvas (WCAG 2.1.4).
     } else if (e.key === '+' || e.key === '=') {
       if (!e.ctrlKey && !e.metaKey) zoomTo(view.zoom * ZOOM_STEP);
     } else if (e.key === '-') {
@@ -1869,7 +1939,7 @@
     clearTimeout(saveTimer);
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(wf));
-      $('#savedNote').hidden = false;
+      $('#savedNote').replaceChildren(el('span', { 'aria-hidden': 'true' }, '✓'), ' Workflow saved');
     } catch {
       toast('Could not save. Your browser is blocking storage.');
     }

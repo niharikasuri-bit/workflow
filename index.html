@@ -79,7 +79,7 @@
       </div>
 
 
-      <div class="viewport" id="viewport">
+      <div class="viewport" id="viewport" tabindex="-1">
         <div class="world" id="world">
           <svg class="edges" id="edges" aria-hidden="true">
             <defs>
@@ -149,7 +149,7 @@
       Back
     </button>
     <div class="footer__right">
-      <p class="footer__saved" id="savedNote" role="status" hidden><span aria-hidden="true">✓</span> Workflow saved</p>
+      <p class="footer__saved" id="savedNote" role="status"></p>
       <button type="button" class="btn btn--primary btn--large" id="saveBtn">Save</button>
     </div>
   </footer>
@@ -166,7 +166,7 @@
       </button>
     </div>
     <div class="modal__body">
-      <pre class="code" tabindex="0" aria-label="Configuration code"><code id="configCode"></code></pre>
+      <pre class="code" tabindex="0" role="region" aria-label="Configuration code"><code id="configCode"></code></pre>
     </div>
     <div class="modal__foot">
       <button type="button" class="btn btn--secondary" id="copyBtn">Copy Code</button>
