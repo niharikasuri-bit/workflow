@@ -851,7 +851,7 @@ button { cursor: pointer; }
   border-left: 4px solid var(--warning); /* #9E5F00 */
   border-radius: 4px;
 }
-.todo-box__title { font-size: 14px; color: var(--text); }
+.todo-box__title { font-size: 14px; color: var(--warning); } /* #9E5F00: 4.8:1 on the #FFF6E5 box */
 .tick-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
 .tick-item { display: flex; align-items: flex-start; gap: 8px; font-size: 13px; line-height: 1.45; color: var(--text); }
 .tick-item__mark {
