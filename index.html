@@ -378,6 +378,46 @@
     </div>
   </dialog>
 
+  <!-- Role: name, description and access (more than one access can be picked) -->
+  <dialog class="modal add-choice role-choice" id="roleDialog" aria-labelledby="roleTitle" aria-describedby="roleDesc">
+    <div class="add-choice__body">
+      <button type="button" class="icon-btn add-choice__close" data-close aria-label="Close">
+        <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+      </button>
+      <h2 class="add-choice__title" id="roleTitle">Create New Role</h2>
+      <p class="add-choice__desc" id="roleDesc">Create a new role and choose what it can access.</p>
+      <div class="nf-fields">
+        <div class="digit-field">
+          <label class="digit-field__label" for="roleName">Role Name <span class="req">*</span></label>
+          <div class="digit-text-input-field">
+            <input class="digit-employeeCard-input" id="roleName" type="text" placeholder="Enter role name" autocomplete="off" aria-required="true" aria-describedby="roleNameErr">
+          </div>
+          <span class="field__error" id="roleNameErr" hidden></span>
+        </div>
+        <fieldset class="add-choice__options role-access" aria-describedby="roleAccessErr">
+          <legend class="digit-label">What kind of access do you want to give the role? <span class="req">*</span></legend>
+          <label class="radio-card radio-card--check">
+            <input type="checkbox" name="roleAccess" value="VIEWER" checked>
+            <span><span class="radio-card__label">Viewer</span><span class="radio-card__text">Can view everything in the service. Cannot edit anything or add anything new.</span></span>
+          </label>
+          <label class="radio-card radio-card--check">
+            <input type="checkbox" name="roleAccess" value="EDITOR">
+            <span><span class="radio-card__label">Editor</span><span class="radio-card__text">Can edit anything that was already created in the service. Cannot add anything new.</span></span>
+          </label>
+          <label class="radio-card radio-card--check">
+            <input type="checkbox" name="roleAccess" value="CREATOR">
+            <span><span class="radio-card__label">Creator</span><span class="radio-card__text">Can add new things to the service, and view and edit everything in it. Has full access.</span></span>
+          </label>
+          <span class="field__error" id="roleAccessErr" hidden></span>
+        </fieldset>
+      </div>
+    </div>
+    <div class="modal__foot">
+      <button type="button" class="btn btn--secondary" data-close>Cancel</button>
+      <button type="button" class="btn btn--primary" id="roleConfirm">Create Role</button>
+    </div>
+  </dialog>
+
   <!-- Checklist for an action: how to add -> (pick to duplicate) -> question builder -->
   <dialog class="modal add-choice cl-choice" id="clDialog" aria-labelledby="clHowTitle">
     <div class="add-choice__body">

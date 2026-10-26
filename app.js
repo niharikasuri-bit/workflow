@@ -527,6 +527,51 @@
   payDialog.addEventListener('click', (e) => { if (e.target === payDialog) payDialog.close(); });
   payDialog.addEventListener('close', () => { payPending = null; });
 
+  /* Create New Role: name and access. Access is multi-select
+     (Viewer, Editor, Creator); at least one is needed. */
+  const roleDialog = $('#roleDialog');
+  const roleName = $('#roleName');
+  let roleCtx = null; // { taken, onSave }
+  const roleAccessInputs = () => [...roleDialog.querySelectorAll('input[name="roleAccess"]')];
+  function openRoleDialog({ taken, onSave }) {
+    roleCtx = { taken, onSave };
+    roleName.value = '';
+    roleAccessInputs().forEach((c) => { c.checked = c.value === 'VIEWER'; });
+    clError(roleName, '');
+    $('#roleAccessErr').hidden = true;
+    roleDialog.showModal();
+    roleName.focus();
+  }
+  roleName.addEventListener('input', () => roleName.value.trim() && clError(roleName, ''));
+  // Access builds up: Editor includes Viewer, Creator includes all three.
+  // Ticking a level ticks the ones below it; unticking a level unticks the ones above it.
+  roleAccessInputs().forEach((c, i, all) =>
+    c.addEventListener('change', () => {
+      all.forEach((x, j) => {
+        if (c.checked && j < i) x.checked = true;
+        if (!c.checked && j > i) x.checked = false;
+      });
+      if (c.checked) $('#roleAccessErr').hidden = true;
+    })
+  );
+  $('#roleConfirm').addEventListener('click', () => {
+    if (!roleCtx) return;
+    const code = toCode(roleName.value);
+    const access = roleAccessInputs().filter((c) => c.checked).map((c) => c.value);
+    clError(roleName, !code ? 'Enter the role name.' : roleCtx.taken.includes(code) ? 'This role already exists.' : '');
+    const err = $('#roleAccessErr');
+    err.textContent = 'Select at least one access.';
+    err.hidden = access.length > 0;
+    if (!roleName.validity.valid || roleName.getAttribute('aria-invalid')) return roleName.focus();
+    if (!access.length) return roleAccessInputs()[0].focus();
+    const run = roleCtx.onSave;
+    roleDialog.close();
+    run({ code, access });
+  });
+  roleDialog.querySelectorAll('[data-close]').forEach((b) => b.addEventListener('click', () => roleDialog.close()));
+  roleDialog.addEventListener('click', (e) => { if (e.target === roleDialog) roleDialog.close(); });
+  roleDialog.addEventListener('close', () => { roleCtx = null; });
+
   /* Checklist popup for an action. Paths:
        create new: How to add -> Questions
        duplicate:  How to add -> Select checklist -> Questions (prefilled)
@@ -773,7 +818,7 @@
   }
 
   function clError(input, msg) {
-    const err = $(`#${input.getAttribute('aria-describedby')}`);
+    const err = $(`#${input.getAttribute('aria-describedby').split(' ')[0]}`); // the error is the first described-by id
     err.textContent = msg;
     err.hidden = !msg;
     if (msg) input.setAttribute('aria-invalid', 'true');
@@ -987,7 +1032,6 @@
     const next = kind ? { kind, id } : null;
     if (!next || !selected || next.kind !== selected.kind || next.id !== selected.id) {
       renaming = null;
-      addingRole = false;
       renamingChecklist = false;
     }
     selected = next;
@@ -2012,7 +2056,6 @@
     ADMIN: 'Admin',
   };
 
-  let addingRole = false;
 
   /** Roles as a checklist inside a grey card and white inner card (no switch).
       Roles added here are kept on the workflow, so every action can use them. */
@@ -2022,36 +2065,29 @@
 
     const roleLabel = (r) => ROLE_LABELS[r] || r.charAt(0) + r.slice(1).toLowerCase().replace(/_/g, ' ');
 
-    let addArea;
-    if (addingRole) {
-      const input = el('input', { class: 'logic-item__input', type: 'text', placeholder: 'Role name, for example Clerk', 'aria-label': 'New role name', 'data-focus': 'role', autocomplete: 'off' });
-      const finish = (keep) => {
-        if (!addingRole) return;
-        addingRole = false;
-        const code = toCode(input.value);
-        if (keep && code) {
-          if (!all.includes(code)) custom.push(code);
-          if (!a.roles.includes(code)) a.roles = [...a.roles, code];
-          commit();
-          toast(`${roleLabel(code)} added`);
-        }
-        renderInspector();
-        $('.role-add', inspector)?.focus();
-      };
-      input.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter') { e.preventDefault(); finish(true); }
-        else if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); finish(false); }
-      });
-      input.addEventListener('blur', () => finish(true));
-      addArea = el('div', { class: 'logic-item is-editing' }, input);
-    } else {
-      addArea = el(
-        'button',
-        { type: 'button', class: 'btn btn--secondary btn--block inner-card__add role-add', onClick: () => { addingRole = true; renderInspector({ focusRole: true }); } },
-        icon(ICONS.plus),
-        'Add Role'
-      );
-    }
+    // "Add Role" opens the Create New Role popup; the new role is ticked for this action.
+    const addArea = el(
+      'button',
+      {
+        type: 'button',
+        class: 'btn btn--secondary btn--block inner-card__add role-add',
+        onClick: () =>
+          openRoleDialog({
+            taken: all,
+            onSave: ({ code, access }) => {
+              custom.push(code);
+              (wf.roleDetails ||= {})[code] = { access };
+              a.roles = [...a.roles, code];
+              commit();
+              renderInspector();
+              $('.role-add', inspector)?.focus();
+              toast(`${roleLabel(code)} added`);
+            },
+          }),
+      },
+      icon(ICONS.plus),
+      'Add Role'
+    );
     return el(
       'div',
       { class: 'inner-card inner-card--muted' },
