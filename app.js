@@ -1687,9 +1687,10 @@
       title: 'Payment',
       cardTitle: 'Collect Payment',
       info: 'Fees collected at this state, such as an application or inspection fee. Work can be held here until they are paid.',
-      listTitle: 'Payments for this state',
+      listTitle: 'Payment for this state',
       empty: 'Payment yet to be added',
       noun: 'Payment',
+      single: true,
     },
   };
 
@@ -1718,9 +1719,6 @@
             $(`[aria-labelledby="${titleId}"]`, inspector)?.focus();
           };
           if (key === 'payment' && !data.enabled) {
-            // Only one state in the process flow can collect payment.
-            const other = wf.states.find((st) => st.id !== s.id && st.payment?.enabled);
-            if (other) return toast(`Only one state can collect payment. "${other.name}" already collects payment.`);
             return askAfterPayment(data.after, (after) => { data.enabled = true; data.after = after; apply(); });
           }
           data.enabled = !data.enabled;
@@ -1856,7 +1854,10 @@
               { class: 'inner-card' },
               el('div', { class: 'inner-card__head' }, el('h5', { class: 'inner-card__title' }, cfg.listTitle)),
               data.items.length ? el('ul', { class: 'logic-list' }, data.items.map(row)) : emptyNote(cfg.empty),
-              el('button', { type: 'button', class: 'btn btn--secondary btn--block inner-card__add', onClick: add }, icon(ICONS.plus), `Add ${cfg.noun} to State`)
+              // Like the checklist on an action: a state has at most one payment.
+              cfg.single && data.items.length
+                ? null
+                : el('button', { type: 'button', class: 'btn btn--secondary btn--block inner-card__add', onClick: add }, icon(ICONS.plus), `Add ${cfg.noun} to State`)
             )
           : null
       )
