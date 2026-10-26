@@ -1036,6 +1036,247 @@ button { cursor: pointer; }
 .confirm__actions .btn { min-height: 40px; font-size: 14px; }
 .confirm__actions .btn { min-height: 36px; font-size: 14px; padding: 0 12px; }
 
+/* Add popup: create new or duplicate existing. Radio cards follow the
+   attendance app's RadioCard (#FAFAFA card, orange border + #FFF8F5 when picked). */
+.modal.add-choice { width: min(800px, calc(100vw - 32px)); position: fixed; }
+.add-choice__body { position: relative; padding: 24px 24px 20px; overflow-y: auto; flex: 1; min-height: 0; }
+.add-choice__close { position: absolute; top: 12px; right: 12px; width: 32px; height: 32px; }
+.add-choice__title { font-size: 20px; line-height: 1.35; color: var(--secondary); padding-right: 32px; }
+.add-choice__desc { margin: 4px 0 0; font-size: 14px; line-height: 1.5; color: var(--muted); }
+.add-choice__options { margin: 16px 0 0; padding: 0; border: 0; display: grid; gap: 12px; }
+.radio-card {
+  display: flex; align-items: flex-start; gap: 12px;
+  padding: 16px; border: 1px solid var(--border); border-radius: 8px;
+  background: var(--surface-2); cursor: pointer; transition: border-color 0.15s, background 0.15s;
+}
+.radio-card:hover { border-color: var(--muted); }
+.radio-card:has(input:checked) { border-color: var(--primary); background: #fff8f5; }
+.radio-card:has(input:focus-visible) { box-shadow: var(--focus); }
+.radio-card input:focus-visible { box-shadow: none; } /* the card carries the ring */
+.radio-card input {
+  appearance: none; flex: none; margin: 1px 0 0;
+  width: 18px; height: 18px; border-radius: 50%;
+  border: 2px solid var(--muted); background: var(--surface);
+  display: grid; place-items: center; outline: none;
+}
+.radio-card input::before { content: ''; width: 8px; height: 8px; border-radius: 50%; background: var(--primary); transform: scale(0); }
+.radio-card input:checked { border-color: var(--primary); }
+.radio-card input:checked::before { transform: scale(1); }
+.radio-card__label { display: block; font-size: 14px; font-weight: 700; color: var(--secondary); }
+.radio-card__text { display: block; margin-top: 4px; font-size: 13px; color: var(--muted); }
+
+/* Wizard progress: one bar per step, orange once reached; the close button sits after them */
+.wizard { margin: 4px 40px 24px 0; }
+.wizard__bars { display: flex; gap: 12px; }
+.wizard__bar { flex: 1; height: 6px; border-radius: 3px; background: var(--subtle); }
+.wizard__bar.is-on { background: var(--primary); }
+.add-choice__close { top: 11px; }
+
+/* Step 2: selectable cards (title + channel tag, context, check circle) */
+.pick-list { margin: 12px -4px 0; padding: 4px; display: grid; gap: 12px; max-height: 50vh; overflow-y: auto; }
+.pick-card {
+  display: flex; align-items: flex-start; gap: 12px;
+  padding: 16px; border: 1px solid var(--muted); border-radius: 8px;
+  background: var(--surface); cursor: pointer;
+}
+.pick-card:hover { border-color: var(--primary); }
+.pick-card:has(input:checked) { border: 2px solid var(--primary); padding: 15px; box-shadow: 0 2px 6px rgba(0, 0, 0, 0.12); }
+.pick-card:has(input:focus-visible) { box-shadow: var(--focus); }
+.pick-card input {
+  order: 2; appearance: none; flex: none; margin: 2px 0 0 auto;
+  width: 22px; height: 22px; border-radius: 50%;
+  border: 2px solid var(--muted); background: var(--surface); outline: none;
+}
+.pick-card input:focus-visible { box-shadow: none; }
+.pick-card input:checked {
+  border-color: var(--primary);
+  background: var(--primary) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M6 12.5l4 4 8-9' fill='none' stroke='%23fff' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") no-repeat center / 14px;
+}
+.pick-card__body { min-width: 0; display: grid; gap: 6px; }
+.pick-card__title { font-size: 16px; font-weight: 700; color: var(--secondary); }
+.pick-card__tags { display: flex; flex-wrap: wrap; gap: 8px; }
+/* Tags: state (neutral) and notification type (SMS blue, Email purple) */
+.tag { display: inline-flex; align-items: center; height: 24px; padding: 0 8px; border-radius: 4px; font-size: 12px; font-weight: 500; background: var(--surface-3); color: var(--text); }
+.tag--type { background: var(--mid-bg); color: var(--mid); } /* blue info tag, no icon */
+
+/* Notification type tiles (SMS / Email) */
+/* SMS / Email cards, centred, matching the user's reference (they never stretch to the popup width) */
+.type-tiles { margin: 24px 0 0; padding: 0; border: 0; min-width: 0; }
+.type-tiles__grid { display: flex; flex-wrap: wrap; justify-content: center; gap: 20px; }
+.type-tiles__grid > .type-tile { flex: 0 1 232px; min-width: 200px; } /* three fit on one row */
+.type-tile {
+  display: flex; flex-direction: column; align-items: center; text-align: center;
+  padding: 24px 20px; border: 1px solid var(--border); border-radius: 10px;
+  background: var(--surface); cursor: pointer; position: relative;
+}
+.type-tile:hover { border-color: var(--primary); }
+.type-tile:has(input:checked) { border: 2px solid var(--primary); padding: 23px 19px; background: #fff8f5; }
+.type-tile:has(input:focus-visible) { box-shadow: var(--focus); }
+.type-tile input { position: absolute; opacity: 0; pointer-events: none; }
+.type-tile__icon { display: grid; place-items: center; width: 40px; height: 40px; border-radius: 8px; background: var(--primary-bg); color: var(--primary); }
+.type-tile__icon .type-tile__ink { stroke: var(--primary-bg); }
+.type-tile:has(input:checked) .type-tile__icon { background: var(--primary); color: #fff; }
+.type-tile:has(input:checked) .type-tile__icon .type-tile__ink { stroke: var(--primary); }
+.type-tile__label { margin-top: 12px; font-size: 16px; font-weight: 700; color: var(--secondary); }
+.type-tile__text { margin-top: 8px; font-size: 14px; line-height: 1.45; color: var(--muted); }
+
+/* Notification details */
+.nf-head { display: grid; gap: 10px; }
+.nf-title-row { display: flex; align-items: center; gap: 4px; }
+.nf-title-row .add-choice__title { padding-right: 0; }
+.nf-rename { width: 32px; height: 32px; color: var(--primary); }
+/* The editable name ("Notification 1", "Checklist 1") is 32px text; the rename field matches so nothing jumps */
+.nf-title-row .add-choice__title { font-size: 32px; line-height: 1.25; }
+.nf-name { height: 48px; padding: 0 8px; font-size: 32px; font-weight: 700; color: var(--secondary); }
+/* SMS / Email tag under the name: 4px bigger than the other tags */
+#nfTags .tag { height: 28px; padding: 0 10px; font-size: 16px; }
+.nf-fields { display: grid; gap: 16px; padding-top: 16px; }
+/* Grey wrapped containers: Subject in one; Message + variables in the other */
+.nf-box { display: grid; gap: 20px; padding: 16px; background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; }
+.nf-box[hidden] { display: none; }
+
+/* SMS: DIGIT info alert card and the provider integration footer */
+.nf-info { padding: 12px 16px; background: #deefff; border-left: 4px solid var(--mid); border-radius: 4px; }
+.nf-info__title { display: flex; align-items: center; gap: 8px; margin: 0; font-size: 16px; font-weight: 700; color: var(--mid); }
+.nf-info__text { margin: 6px 0 0 28px; font-size: 14px; line-height: 1.5; color: var(--text); }
+
+/* DIGIT TextInput / TextArea (digit-ui-components-css): 40px field, 1px #787878 border,
+   4px corners (user's choice), 16px Roboto, 12px left padding; focus and error get a 1.5px border.
+   Placeholder stays #5E5E5E (DIGIT's #C5C5C5 fails WCAG contrast). */
+.digit-text-input-field { position: relative; width: 100%; }
+.digit-employeeCard-input,
+.digit-employee-card-textarea-field {
+  display: block; width: 100%;
+  border: 1px solid #787878; border-radius: 4px;
+  background: #fff; color: var(--text);
+  font: 400 16px/24px Roboto, sans-serif;
+  padding: 0 12px;
+}
+.digit-employeeCard-input { height: 40px; }
+.digit-employee-card-textarea-field { height: 100px; padding: 8px 12px; resize: vertical; }
+.digit-employeeCard-input::placeholder,
+.digit-employee-card-textarea-field::placeholder { color: #5e5e5e; }
+.digit-employeeCard-input:focus, .digit-employeeCard-input:focus-visible,
+.digit-employee-card-textarea-field:focus, .digit-employee-card-textarea-field:focus-visible {
+  outline: none; box-shadow: none; border: 1.5px solid var(--primary);
+}
+.digit-employeeCard-input[aria-invalid='true'],
+.digit-employee-card-textarea-field[aria-invalid='true'] { border: 1.5px solid var(--error); }
+.nf-label { font-size: 14px; font-weight: 700; color: var(--secondary); }
+/* DIGIT input field: label + info icon, field, then help text / error left and counter right */
+.digit-label-row { display: flex; align-items: center; gap: 4px; min-height: 24px; }
+/* Label on the left, field on the right; stacks with a 4px label-to-field gap when narrow */
+.nf-row { display: grid; grid-template-columns: 200px minmax(0, 1fr); gap: 4px 16px; align-items: start; }
+.nf-row > .digit-label-row { min-height: 40px; }
+.nf-control { display: grid; gap: 4px; min-width: 0; }
+.nf-vars-head { display: grid; gap: 4px; padding-top: 4px; }
+.nf-vars-head .nf-label { font-size: 16px; } /* same as the other field labels */
+@media (max-width: 600px) {
+  .nf-row { grid-template-columns: minmax(0, 1fr); }
+  .nf-row > .digit-label-row { min-height: 24px; }
+}
+.digit-label { font-size: 16px; font-weight: 700; color: var(--secondary); }
+.digit-help { font-size: 14px; color: var(--muted); }
+.nf-meta { display: flex; gap: 12px; min-height: 0; }
+.nf-meta:has(.field__error:not([hidden])), .nf-meta:has(.nf-count) { min-height: 20px; }
+.nf-meta .field__error { font-size: 14px; }
+.nf-count { margin-left: auto; font-size: 14px; color: var(--muted); }
+.var-chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 2px; }
+/* White chips with an orange + so they stand out on the grey box and read as "add" */
+.var-chip {
+  display: inline-flex; align-items: center; gap: 4px;
+  height: 30px; padding: 0 12px 0 8px; border: 1px solid var(--subtle); border-radius: 15px;
+  background: var(--surface); font-size: 13px; color: var(--text); cursor: pointer;
+  box-shadow: var(--shadow-sm);
+}
+.var-chip svg { color: var(--primary); flex: none; }
+.var-chip:hover { border-color: var(--primary); background: var(--primary-bg); color: var(--primary-hover); }
+
+.modal.pay-choice { width: min(560px, calc(100vw - 32px)); }
+
+
+/* Checklist popup: question builder (follows the user's question-card screenshots) */
+.modal.cl-choice { width: min(1000px, calc(100vw - 32px)); }
+.cl-context { margin-top: 16px; }
+.cl-questions {
+  display: grid; gap: 16px; margin-top: 16px; padding: 16px;
+  background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px;
+}
+.cl-q { display: grid; gap: 12px; padding: 20px 24px; background: var(--surface); border: 1px solid var(--border); border-radius: 4px; box-shadow: var(--shadow-sm); }
+.cl-q__head { display: flex; align-items: center; gap: 16px; }
+.cl-q__title { margin: 0; font-size: 20px; font-weight: 700; color: var(--secondary); }
+.cl-q__delete { margin-left: auto; }
+.cl-check { display: inline-flex; align-items: center; gap: 8px; font-size: 14px; color: var(--text); cursor: pointer; }
+.cl-check input { width: 20px; height: 20px; margin: 0; accent-color: var(--primary); }
+.cl-q__row { display: grid; grid-template-columns: minmax(0, 1fr) 240px; gap: 16px; }
+/* DIGIT Dropdown (from digit-ui-components-css): field, options card, item highlight */
+.digit-dropdown-employee-select-wrap { position: relative; width: 100%; }
+.digit-dropdown-select {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  width: 100%; height: 40px; padding: 0 8px 0 12px;
+  border: 1px solid #787878; border-radius: 4px; background: #fff;
+  font: 400 16px/24px Roboto, sans-serif; color: var(--text); text-align: left; cursor: pointer;
+}
+.digit-dropdown-select svg { flex: none; }
+.digit-dropdown-select:focus-visible, .digit-dropdown-select.digit-dropdown-select-active { outline: none; box-shadow: none; border: 1.5px solid var(--primary); }
+.digit-dropdown-options-card {
+  position: absolute; top: calc(100% + 2px); left: 0; right: 0; z-index: 20;
+  margin: 0; padding: 0; list-style: none; max-height: 240px; overflow-y: auto;
+  background: #fff; border-radius: 4px; box-shadow: 0 1px 4.4px rgba(0, 0, 0, 0.149);
+}
+.digit-dropdown-item {
+  display: flex; align-items: center; min-height: 40px; padding: 8px 12px;
+  border: 0.5px solid transparent; font-size: 16px; color: var(--text); cursor: pointer;
+}
+.digit-dropdown-item:first-child { border-radius: 4px 4px 0 0; }
+.digit-dropdown-item:last-child { border-radius: 0 0 4px 4px; }
+.digit-dropdown-item:hover, .digit-dropdown-item.keyChange { background: var(--primary-bg); border-color: var(--primary); }
+.digit-dropdown-item[aria-selected='true'] { font-weight: 500; }
+.cl-opts { list-style: none; margin: 0; padding: 0; border-bottom: 1px solid var(--border); }
+.cl-opt { display: flex; align-items: center; gap: 12px; min-height: 44px; }
+.cl-opt__mark { flex: none; display: grid; place-items: center; width: 22px; height: 22px; border: 1.5px solid #787878; font-size: 14px; color: var(--muted); }
+.cl-opt__mark--radio { border-radius: 50%; }
+.cl-opt__mark--checkbox { border-radius: 3px; }
+.cl-opt__mark--dropdown { border: 0; width: auto; min-width: 22px; }
+.cl-opt__input { flex: 1; min-width: 0; height: 36px; padding: 0 8px; border: 1px solid transparent; border-radius: 4px; background: none; font-size: 16px; color: var(--text); }
+.cl-opt__input::placeholder { color: var(--muted); }
+.cl-opt__input:hover { border-color: var(--border); }
+.cl-opt__input:focus { border-color: var(--primary); outline: none; box-shadow: none; }
+.cl-nested { display: inline-flex; align-items: center; gap: 2px; flex: none; }
+.cl-nested .info-btn { width: 24px; height: 24px; color: var(--text); }
+.cl-opt__delete { width: 32px; height: 32px; flex: none; }
+.cl-link {
+  display: inline-flex; align-items: center; gap: 6px; justify-self: start;
+  padding: 2px 0; border: 0; background: none; cursor: pointer;
+  font-size: 16px; color: var(--primary); text-decoration: underline; text-underline-offset: 3px;
+}
+.cl-link:hover { color: var(--primary-hover); }
+.cl-link svg { color: var(--primary); flex: none; }
+.cl-add-q { justify-self: start; gap: 8px; }
+.cl-add-q svg { color: var(--primary); }
+@media (max-width: 700px) {
+  .cl-q__row { grid-template-columns: minmax(0, 1fr); }
+  .cl-opt { flex-wrap: wrap; }
+}
+
+/* Notification details: the state as a non-editable DIGIT dropdown (disabled look) */
+.nf-state {
+  appearance: none; padding-right: 36px;
+  background: var(--surface-2) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M0 0h10L5 6z' fill='%23B1B4B6'/%3E%3C/svg%3E") no-repeat right 14px center;
+  border-color: var(--border); color: var(--muted); cursor: not-allowed; opacity: 1;
+}
+
+/* Document popup: search + list of existing documents */
+.modal.doc-choice { width: min(720px, calc(100vw - 32px)); }
+.doc-choice .add-choice__title { padding-right: 40px; } /* no progress bars here, so clear the close button */
+.doc-search { position: relative; margin-top: 16px; }
+.doc-search__input { padding-right: 40px; }
+.doc-search__input::-webkit-search-cancel-button { display: none; }
+.doc-search svg { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); pointer-events: none; }
+.doc-choice .pick-list { max-height: 44vh; }
+.doc-empty { margin: 16px 0 0; padding: 16px; text-align: center; font-size: 14px; color: var(--muted); background: var(--surface-2); border: 1px dashed var(--border); border-radius: 8px; }
+.btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
 /* ===== Reflow (WCAG 1.4.10): narrow windows and 400% zoom stack the panels ===== */
 @media (max-width: 760px) {
   body { overflow: auto; }

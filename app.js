@@ -126,7 +126,7 @@
 
   function addState(type, pos) {
     if (type === 'start' && startState()) {
-      toast('A workflow has one start state. It is already on the canvas.');
+      toast('A process flow has one start state. It is already on the canvas.');
       select('state', startState().id);
       ensureVisible(startState());
       return;
@@ -173,7 +173,7 @@
     const to = stateById(toId);
     let msg = '';
     if (!from || !to) msg = 'Pick two states to connect.';
-    else if (from.type === 'end') msg = 'End states close the workflow, so no actions can leave them.';
+    else if (from.type === 'end') msg = 'End states close the process flow, so no actions can leave them.';
     else if (fromId === toId) msg = 'An action has to move to a different state.';
     if (msg && !silent) toast(msg);
     return !msg;
@@ -232,6 +232,688 @@
   deleteDialog.querySelectorAll('[data-close]').forEach((b) => b.addEventListener('click', () => deleteDialog.close()));
   deleteDialog.addEventListener('click', (e) => { if (e.target === deleteDialog) deleteDialog.close(); });
   deleteDialog.addEventListener('close', () => { pendingDelete = null; });
+
+  /* Add wizard (one popup), used by Notification. Paths:
+       create new: How to add -> Type -> Details
+       duplicate:  How to add -> Select item -> Details (prefilled)
+     With nothing to duplicate it starts at Type. ADD_WIZARDS holds the
+     wording and types for each; the item's type is saved under typeKey. */
+  const tileIcon = (shape, ink) =>
+    `<svg viewBox="0 0 24 24" width="24" height="24">${shape}<path d="${ink}" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" class="type-tile__ink"/></svg>`;
+  const ADD_WIZARDS = {
+    notify: {
+      noun: 'Notification',
+      typeKey: 'channel',
+      typeTitle: 'Select Notification Type',
+      typeDesc: 'Start by choosing the notification type you want to add, such as Email or SMS, to notify users at the right time.',
+      types: [
+        { value: 'SMS', text: 'Send text messages to users on their mobile numbers',
+          icon: tileIcon('<path d="M4 4h16a1 1 0 011 1v11a1 1 0 01-1 1H8l-4 4V5a1 1 0 011-1z" fill="currentColor"/>', 'M8 9h8M8 12.5h5') },
+        { value: 'Email', text: 'Send emails to users on their registered email addresses',
+          icon: tileIcon('<rect x="3" y="5" width="18" height="14" rx="2" fill="currentColor"/>', 'M4 7l8 6 8-6') },
+      ],
+      bodyLabel: 'Message Body',
+      bodyMax: { SMS: 160, Email: 500 },
+      subjectFor: 'Email',
+      infoFor: 'SMS',
+    },
+  };
+  const VARIABLES = [
+    'Application Number', 'Submission Date', 'Submission Time', 'Current State', 'Name', 'Mobile Number', 'Email',
+    'Gender', 'Pincode', 'Street Name', 'Location on Map', 'Business Name', 'Established Date', 'Contact',
+  ];
+  const addDialog = $('#addDialog');
+  const addPickList = $('#addPickList');
+  const addConfirm = $('#addConfirm');
+  const addBack = $('#addBack');
+  const nfTitle = $('#nfTitle');
+  const nfName = $('#nfName');
+  const nfSubject = $('#nfSubject');
+  const nfBody = $('#nfBody');
+  let addCtx = null; // { wiz, sources, stateName, uniqueName, onSave, path, at, draft }
+
+  const bodyMax = () => {
+    const wiz = addCtx?.wiz;
+    return (wiz && (wiz.bodyMax[addCtx.draft?.type] || wiz.defaultMax)) || 500;
+  };
+  const picked = (name) => addDialog.querySelector(`input[name="${name}"]:checked`)?.value;
+  const typeTag = (type) =>
+    type ? el('span', { class: 'tag tag--type' }, el('span', { class: 'sr-only' }, 'Type: '), type) : null;
+  // State names show as blue info tags, like the type tags.
+  const stateTag = (name) => el('span', { class: 'tag tag--type' }, el('span', { class: 'sr-only' }, 'State: '), name);
+
+  function showAddStep() {
+    const { path, at } = addCtx;
+    const step = path[at];
+    addDialog.querySelectorAll('[data-add-step]').forEach((sec) => { sec.hidden = sec.dataset.addStep !== step; });
+    $('#addBars').replaceChildren(...path.map((_, i) => el('span', { class: `wizard__bar${i <= at ? ' is-on' : ''}` })));
+    $('#addStepText').textContent = `Step ${at + 1} of ${path.length}`;
+    const heading = addDialog.querySelector(`[data-add-step="${step}"] h2`);
+    addDialog.setAttribute('aria-labelledby', heading.id);
+    addBack.textContent = at === 0 ? 'Cancel' : 'Back';
+    addConfirm.textContent = step === 'form' ? 'Save' : 'Next';
+    const first = {
+      how: () => addDialog.querySelector('input[name="addMode"]:checked'),
+      type: () => addDialog.querySelector('input[name="addType"]:checked'),
+      pick: () => addPickList.querySelector('input:checked'),
+      form: () => (nfSubject.closest('[hidden]') ? nfBody : nfSubject),
+    }[step]();
+    first?.focus();
+  }
+
+  /* ---- Details step ---- */
+  function setNfTitle(name) {
+    nfTitle.textContent = name;
+    nfName.value = name;
+  }
+  function nfRenaming(on) {
+    $('#nfTitleRow').hidden = on;
+    nfName.hidden = !on;
+    if (on) { nfName.focus(); nfName.select(); }
+  }
+  function finishRename(keep) {
+    if (nfName.hidden) return;
+    if (keep && nfName.value.trim()) addCtx.draft.name = nfName.value.trim();
+    setNfTitle(addCtx.draft.name);
+    nfRenaming(false);
+    $('#nfRename').focus();
+  }
+  $('#nfRename').addEventListener('click', () => nfRenaming(true));
+  nfName.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') { e.preventDefault(); finishRename(true); }
+    else if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); finishRename(false); }
+  });
+  nfName.addEventListener('blur', () => finishRename(true));
+
+  const updateCount = () => { $('#nfCount').textContent = `${nfBody.value.length}/${bodyMax()}`; };
+  nfBody.addEventListener('input', () => { updateCount(); fieldError(nfBody, ''); });
+  nfSubject.addEventListener('input', () => fieldError(nfSubject, ''));
+
+  function fieldError(input, msg) {
+    const err = $(`#${input.id}Err`);
+    err.textContent = msg;
+    err.hidden = !msg;
+    if (msg) input.setAttribute('aria-invalid', 'true');
+    else input.removeAttribute('aria-invalid');
+  }
+
+  $('#nfVars').replaceChildren(
+    ...VARIABLES.map((v) =>
+      el('button', {
+        type: 'button',
+        class: 'var-chip',
+        'aria-label': `Add ${v}`,
+        onClick: () => {
+          const token = `{${v}}`;
+          const { selectionStart: from, selectionEnd: to, value } = nfBody;
+          if (value.length - (to - from) + token.length > bodyMax()) return toast(`This field can have up to ${bodyMax()} characters.`);
+          nfBody.value = value.slice(0, from) + token + value.slice(to);
+          nfBody.focus();
+          nfBody.setSelectionRange(from + token.length, from + token.length);
+          updateCount();
+          fieldError(nfBody, '');
+        },
+      }, icon(ICONS.plus, 14), v)
+    )
+  );
+
+  function fillForm(draft) {
+    const { wiz } = addCtx;
+    addCtx.draft = draft;
+    setNfTitle(draft.name);
+    nfRenaming(false);
+    // The state is shown as a read-only dropdown, not a tag.
+    $('#nfTags').replaceChildren(...[typeTag(draft.type)].filter(Boolean));
+    $('#nfState').replaceChildren(el('option', {}, addCtx.stateName));
+    $('#nfSubjectField').hidden = !wiz.subjectFor || draft.type !== wiz.subjectFor;
+    $('#nfSmsInfo').hidden = !wiz.infoFor || draft.type !== wiz.infoFor;
+    nfBody.maxLength = bodyMax();
+    nfSubject.value = draft.subject || '';
+    nfBody.value = draft.body || '';
+    fieldError(nfSubject, '');
+    fieldError(nfBody, '');
+    updateCount();
+  }
+
+  function chooseAdd({ key, sources, stateName, uniqueName, onSave }) {
+    const wiz = ADD_WIZARDS[key];
+    const noun = wiz.noun;
+    const n = noun.toLowerCase();
+    const text = (id, value) => { $(id).textContent = value; };
+    text('#addTitle', `How do you want to add the ${n}?`);
+    text('#addDesc', `Create a new ${n}, or duplicate one that already exists in this process flow.`);
+    text('#addLegend', `How to add the ${n}`);
+    text('#addNewLabel', `Create new ${n}`);
+    text('#addNewHint', `Start with a blank ${n}.`);
+    text('#addCopyLabel', `Duplicate existing ${n}`);
+    text('#addCopyHint', `Copy a ${n} and edit it.`);
+    text('#addTypeTitle', wiz.typeTitle);
+    text('#addTypeDesc', wiz.typeDesc);
+    text('#addTypeLegend', `${noun} type`);
+    text('#addPickTitle', `Select ${noun}`);
+    text('#addPickDesc', `Select the ${n} to duplicate. You can edit it in the next step.`);
+    text('#nfBodyLabel', wiz.bodyLabel);
+    nfBody.placeholder = `Enter ${wiz.bodyLabel.toLowerCase()}`;
+    $('#nfRename').setAttribute('aria-label', `Rename ${n}`);
+    nfName.setAttribute('aria-label', `${noun} name`);
+
+    $('#addTypeTiles').replaceChildren(
+      ...wiz.types.map((t, i) => {
+        const tile = el(
+          'label',
+          { class: 'type-tile' },
+          el('input', { type: 'radio', name: 'addType', value: t.value, checked: i === 0 }),
+          el('span', { class: 'type-tile__icon', 'aria-hidden': 'true' }),
+          el('span', { class: 'type-tile__label' }, t.value),
+          el('span', { class: 'type-tile__text' }, t.text)
+        );
+        tile.querySelector('.type-tile__icon').innerHTML = t.icon;
+        return tile;
+      })
+    );
+    addPickList.replaceChildren(
+      ...sources.map((src, i) =>
+        el(
+          'label',
+          { class: 'pick-card' },
+          el('input', { type: 'radio', name: 'addPick', value: String(i), checked: i === 0 }),
+          el(
+            'span',
+            { class: 'pick-card__body' },
+            el('span', { class: 'pick-card__title' }, src.item.name),
+            el('span', { class: 'pick-card__tags' }, stateTag(src.stateName), typeTag(src.item[wiz.typeKey]))
+          )
+        )
+      )
+    );
+    addDialog.querySelector('input[value="new"]').checked = true;
+    addCtx = { wiz, sources, stateName, uniqueName, onSave, path: sources.length ? ['how', 'type', 'form'] : ['type', 'form'], at: 0 };
+    addDialog.showModal();
+    showAddStep();
+  }
+
+  addConfirm.addEventListener('click', () => {
+    const ctx = addCtx;
+    if (!ctx) return;
+    const { wiz } = ctx;
+    const step = ctx.path[ctx.at];
+    if (step === 'how') {
+      ctx.path = ['how', picked('addMode') === 'copy' ? 'pick' : 'type', 'form'];
+    } else if (step === 'type') {
+      fillForm({ type: picked('addType'), name: ctx.uniqueName(), subject: '', body: '' });
+    } else if (step === 'pick') {
+      const item = ctx.sources[Number(picked('addPick'))].item;
+      fillForm({ type: item[wiz.typeKey], name: ctx.uniqueName(item.name), subject: item.subject, body: item.body });
+    } else {
+      finishRename(true);
+      const needsSubject = !$('#nfSubjectField').hidden;
+      fieldError(nfSubject, needsSubject && !nfSubject.value.trim() ? 'Enter a subject.' : '');
+      fieldError(nfBody, nfBody.value.trim() ? '' : `Enter the ${wiz.bodyLabel.toLowerCase()}.`);
+      const invalid = addDialog.querySelector('[data-add-step="form"] [aria-invalid="true"]');
+      if (invalid) return invalid.focus();
+      addDialog.close();
+      ctx.onSave({
+        name: ctx.draft.name,
+        ...(ctx.draft.type && { [wiz.typeKey]: ctx.draft.type }),
+        ...(needsSubject && { subject: nfSubject.value.trim() }),
+        body: nfBody.value.trim(),
+      });
+      return;
+    }
+    ctx.at += 1;
+    showAddStep();
+  });
+  addBack.addEventListener('click', () => {
+    if (!addCtx || addCtx.at === 0) return addDialog.close();
+    addCtx.at -= 1;
+    showAddStep();
+  });
+  addDialog.querySelectorAll('[data-close]').forEach((b) => b.addEventListener('click', () => addDialog.close()));
+  addDialog.addEventListener('click', (e) => { if (e.target === addDialog) addDialog.close(); });
+  addDialog.addEventListener('close', () => { addCtx = null; });
+
+  /* Payment: "Next step after payment" is asked when payment is turned on.
+     PROCESS = continue to the next state, TERMINATE = end the process flow. */
+  const payDialog = $('#payDialog');
+  let payPending = null;
+  function askAfterPayment(current, onConfirm) {
+    payDialog.querySelector(`input[name="payAfter"][value="${current || 'PROCESS'}"]`).checked = true;
+    payPending = onConfirm;
+    payDialog.showModal();
+    payDialog.querySelector('input[name="payAfter"]:checked').focus();
+  }
+  $('#payConfirm').addEventListener('click', () => {
+    const run = payPending;
+    payPending = null;
+    const value = payDialog.querySelector('input[name="payAfter"]:checked').value;
+    payDialog.close();
+    run?.(value);
+  });
+  payDialog.querySelectorAll('[data-close]').forEach((b) => b.addEventListener('click', () => payDialog.close()));
+  payDialog.addEventListener('click', (e) => { if (e.target === payDialog) payDialog.close(); });
+  payDialog.addEventListener('close', () => { payPending = null; });
+
+  /* Checklist popup for an action. Paths:
+       create new: How to add -> Questions
+       duplicate:  How to add -> Select checklist -> Questions (prefilled)
+     With no other checklist in the process flow it opens straight on Questions.
+     Each question: text, Required, answer type and (for choice types) options,
+     each option with "Link nested checklist". */
+  const CL_TYPES = [['radio', 'Radio button'], ['text', 'Text']];
+
+  /* DIGIT Dropdown (digit-ui-components Dropdown, rebuilt for this plain-JS page with
+     its class names and look): 40px field with the ArrowDropDown icon, an options card
+     with a shadow, and the orange-tint highlight on hover / arrow keys. Keyboard:
+     Enter / Space / Down open, arrows move, Enter picks, Escape or Tab close. */
+  function digitDropdown({ options, value, label, onChange, className = '' }) {
+    const id = uid('dd');
+    let open = false;
+    let active = Math.max(0, options.findIndex(([v]) => v === value));
+    const current = options.find(([v]) => v === value) || options[0];
+    const arrow = svgEl('svg', { viewBox: '0 0 24 24', width: 24, height: 24, 'aria-hidden': 'true' });
+    arrow.append(svgEl('path', { d: 'M7 10l5 5 5-5z', fill: '#505A5F' }));
+    const list = el('ul', { class: 'digit-dropdown-options-card', role: 'listbox', id: `${id}-list`, 'aria-label': label, hidden: true });
+    const btn = el(
+      'button',
+      {
+        type: 'button',
+        class: `digit-dropdown-select ${className}`,
+        role: 'combobox',
+        'aria-haspopup': 'listbox',
+        'aria-expanded': 'false',
+        'aria-controls': `${id}-list`,
+        'aria-label': label,
+      },
+      el('span', { class: 'digit-dropdown-select__value' }, current[1]),
+      arrow
+    );
+    const highlight = (i) => {
+      active = i;
+      [...list.children].forEach((li, j) => li.classList.toggle('keyChange', j === i));
+      btn.setAttribute('aria-activedescendant', `${id}-${i}`);
+    };
+    const setOpen = (on) => {
+      open = on;
+      list.hidden = !on;
+      btn.setAttribute('aria-expanded', String(on));
+      btn.classList.toggle('digit-dropdown-select-active', on);
+      if (on) highlight(active);
+      else btn.removeAttribute('aria-activedescendant');
+    };
+    const choose = (i) => {
+      setOpen(false);
+      btn.focus();
+      if (options[i][0] !== value) onChange(options[i][0]);
+    };
+    options.forEach(([v, text], i) =>
+      list.append(el('li', {
+        id: `${id}-${i}`,
+        role: 'option',
+        class: 'digit-dropdown-item',
+        'aria-selected': String(v === value),
+        onMousedown: (e) => e.preventDefault(), // keep focus on the field
+        onMouseenter: () => highlight(i),
+        onClick: () => choose(i),
+      }, text))
+    );
+    btn.addEventListener('click', () => setOpen(!open));
+    btn.addEventListener('blur', () => setOpen(false));
+    btn.addEventListener('keydown', (e) => {
+      if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+        e.preventDefault();
+        if (!open) return setOpen(true);
+        highlight((active + (e.key === 'ArrowDown' ? 1 : -1) + options.length) % options.length);
+      } else if ((e.key === 'Enter' || e.key === ' ') && open) {
+        e.preventDefault();
+        choose(active);
+      } else if (e.key === 'Escape' && open) {
+        e.preventDefault();
+        e.stopPropagation();
+        setOpen(false);
+      } else if (e.key === 'Tab') setOpen(false);
+    });
+    return el('div', { class: 'digit-dropdown-employee-select-wrap' }, btn, list);
+  }
+  const clDialog = $('#clDialog');
+  const clConfirm = $('#clConfirm');
+  const clBack = $('#clBack');
+  const clName = $('#clName');
+  let clCtx = null; // { sources, actionName, onSave, path, at, draft: { name, questions } }
+
+  const newOption = () => ({ text: '', nested: false });
+  const newQuestion = () => ({ text: '', required: false, type: 'radio', options: [newOption()] });
+  const plusCircle = () => {
+    const s = svgEl('svg', { viewBox: '0 0 24 24', width: 20, height: 20, 'aria-hidden': 'true' });
+    s.append(svgEl('circle', { cx: 12, cy: 12, r: 11, fill: 'currentColor' }), svgEl('path', { d: 'M12 7v10M7 12h10', stroke: '#fff', 'stroke-width': 2.4, 'stroke-linecap': 'round' }));
+    return s;
+  };
+  const plainTag = (label, value) => el('span', { class: 'tag' }, el('span', { class: 'sr-only' }, `${label}: `), value);
+
+  function showClStep() {
+    const { path, at } = clCtx;
+    const step = path[at];
+    clDialog.querySelectorAll('[data-cl-step]').forEach((sec) => { sec.hidden = sec.dataset.clStep !== step; });
+    $('#clWizard').hidden = path.length < 2;
+    $('#clBars').replaceChildren(...path.map((_, i) => el('span', { class: `wizard__bar${i <= at ? ' is-on' : ''}` })));
+    $('#clStepText').textContent = `Step ${at + 1} of ${path.length}`;
+    clDialog.setAttribute('aria-labelledby', clDialog.querySelector(`[data-cl-step="${step}"] h2`).id);
+    clBack.textContent = at === 0 ? 'Cancel' : 'Back';
+    clConfirm.textContent = step === 'build' ? 'Save' : 'Next';
+    const first = {
+      how: () => clDialog.querySelector('input[name="clMode"]:checked'),
+      pick: () => $('#clPickList input:checked'),
+      build: () => $('#clQuestions .cl-q-input'),
+    }[step]();
+    first?.focus();
+  }
+
+  // Checklist name: heading with a pencil that swaps to an input.
+  function clRenaming(on) {
+    $('#clTitleRow').hidden = on;
+    clName.hidden = !on;
+    if (on) { clName.focus(); clName.select(); }
+  }
+  function clFinishRename(keep) {
+    if (clName.hidden) return;
+    if (keep && clName.value.trim()) clCtx.draft.name = clName.value.trim();
+    $('#clTitle').textContent = clCtx.draft.name;
+    clName.value = clCtx.draft.name;
+    clRenaming(false);
+    $('#clRename').focus();
+  }
+  $('#clRename').addEventListener('click', () => clRenaming(true));
+  clName.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') { e.preventDefault(); clFinishRename(true); }
+    else if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); clFinishRename(false); }
+  });
+  clName.addEventListener('blur', () => clFinishRename(true));
+
+  function questionCard(q, qi, qs) {
+    const n = qi + 1;
+    const qid = `clQ${qi}`;
+    const rerender = (focus) => renderQuestions(focus);
+    const choice = q.type !== 'text';
+    return el(
+      'div',
+      { class: 'cl-q', 'data-q': qi },
+      el(
+        'div',
+        { class: 'cl-q__head' },
+        el('h3', { class: 'cl-q__title', id: `${qid}Title` }, `Question ${n}`),
+        el('label', { class: 'cl-check' }, el('input', { type: 'checkbox', checked: q.required, onChange: (e) => { q.required = e.target.checked; } }), 'Required'),
+        qs.length > 1
+          ? el('button', {
+              type: 'button',
+              class: 'cl-link cl-q__delete',
+              onClick: () => { qs.splice(qi, 1); rerender('.cl-add-q'); },
+            }, icon(ICONS.trash, 16), `Delete Question ${n}`)
+          : null
+      ),
+      el(
+        'div',
+        { class: 'cl-q__row' },
+        el('input', {
+          class: 'digit-employeeCard-input cl-q-input',
+          type: 'text',
+          value: q.text,
+          placeholder: 'Please type your question here',
+          'aria-labelledby': `${qid}Title`,
+          'aria-describedby': `${qid}Err`,
+          autocomplete: 'off',
+          onInput: (e) => {
+            q.text = e.target.value;
+            if (q.text.trim()) clError(e.target, '');
+          },
+        }),
+        digitDropdown({
+          className: 'cl-type',
+          label: `Answer type for question ${n}`,
+          options: CL_TYPES,
+          value: q.type,
+          onChange: (type) => {
+            q.type = type;
+            if (q.type !== 'text' && !q.options.length) q.options = [newOption()];
+            rerender(`[data-q="${qi}"] .cl-type`);
+          },
+        })
+      ),
+      el('span', { class: 'field__error', id: `${qid}Err`, hidden: true }),
+      choice
+        ? el(
+            'ul',
+            { class: 'cl-opts' },
+            ...q.options.map((o, oi) =>
+              el(
+                'li',
+                { class: 'cl-opt' },
+                el('span', { class: `cl-opt__mark cl-opt__mark--${q.type}`, 'aria-hidden': 'true' }, q.type === 'dropdown' ? `${oi + 1}.` : ''),
+                el('input', {
+                  class: 'cl-opt__input',
+                  type: 'text',
+                  value: o.text,
+                  placeholder: `Option ${oi + 1}`,
+                  'aria-label': `Question ${n}, option ${oi + 1}`,
+                  autocomplete: 'off',
+                  onInput: (e) => { o.text = e.target.value; },
+                }),
+                el(
+                  'span',
+                  { class: 'cl-nested' },
+                  el('label', { class: 'cl-check' }, el('input', { type: 'checkbox', checked: o.nested, onChange: (e) => { o.nested = e.target.checked; } }), 'Link nested checklist'),
+                  infoTip('nested checklist', 'A follow-up checklist that appears when this option is chosen.').btn
+                ),
+                q.options.length > 1
+                  ? el('button', {
+                      type: 'button',
+                      class: 'icon-btn cl-opt__delete',
+                      'aria-label': `Delete option ${oi + 1} of question ${n}`,
+                      onClick: () => { q.options.splice(oi, 1); rerender(`[data-q="${qi}"] .cl-add-opt`); },
+                    }, icon(ICONS.close, 16))
+                  : null
+              )
+            )
+          )
+        : null,
+      choice
+        ? el('button', {
+            type: 'button',
+            class: 'cl-link cl-add-opt',
+            onClick: () => { q.options.push(newOption()); rerender(`[data-q="${qi}"] .cl-opt:last-child .cl-opt__input`); },
+          }, plusCircle(), `Add Options for Question ${n}`)
+        : null
+    );
+  }
+
+  function renderQuestions(focusSel) {
+    const qs = clCtx.draft.questions;
+    const box = $('#clQuestions');
+    box.replaceChildren(
+      ...qs.map((q, qi) => questionCard(q, qi, qs)),
+      el('button', {
+        type: 'button',
+        class: 'btn btn--secondary cl-add-q',
+        onClick: () => { qs.push(newQuestion()); renderQuestions(`[data-q="${qs.length - 1}"] .cl-q-input`); },
+      }, plusCircle(), `Add Question ${qs.length + 1}`)
+    );
+    if (focusSel) $(focusSel, box)?.focus();
+  }
+
+  function clError(input, msg) {
+    const err = $(`#${input.getAttribute('aria-describedby')}`);
+    err.textContent = msg;
+    err.hidden = !msg;
+    if (msg) input.setAttribute('aria-invalid', 'true');
+    else input.removeAttribute('aria-invalid');
+  }
+
+  function fillChecklist(draft) {
+    clCtx.draft = draft;
+    $('#clTitle').textContent = draft.name;
+    clName.value = draft.name;
+    clRenaming(false);
+    // The action is shown as a read-only dropdown, like the state in the notification popup.
+    $('#clAction').replaceChildren(el('option', {}, clCtx.actionName));
+    renderQuestions();
+  }
+
+  function openChecklistDialog({ sources, actionName, onSave }) {
+    $('#clPickList').replaceChildren(
+      ...sources.map((src, i) =>
+        el(
+          'label',
+          { class: 'pick-card' },
+          el('input', { type: 'radio', name: 'clPick', value: String(i), checked: i === 0 }),
+          el(
+            'span',
+            { class: 'pick-card__body' },
+            el('span', { class: 'pick-card__title' }, src.item.name),
+            el('span', { class: 'pick-card__tags' }, plainTag('Action', src.actionName), el('span', { class: 'tag tag--type' }, plural((src.item.questions || []).length, 'question')))
+          )
+        )
+      )
+    );
+    clDialog.querySelector('input[name="clMode"][value="new"]').checked = true;
+    clCtx = { sources, actionName, onSave, path: sources.length ? ['how', 'build'] : ['build'], at: 0 };
+    if (!sources.length) fillChecklist({ name: 'Checklist 1', questions: [newQuestion()] });
+    clDialog.showModal();
+    showClStep();
+  }
+
+  clConfirm.addEventListener('click', () => {
+    const ctx = clCtx;
+    if (!ctx) return;
+    const step = ctx.path[ctx.at];
+    if (step === 'how') {
+      const copy = clDialog.querySelector('input[name="clMode"]:checked').value === 'copy';
+      ctx.path = copy ? ['how', 'pick', 'build'] : ['how', 'build'];
+      if (!copy) fillChecklist({ name: 'Checklist 1', questions: [newQuestion()] });
+    } else if (step === 'pick') {
+      const item = ctx.sources[Number(clDialog.querySelector('input[name="clPick"]:checked').value)].item;
+      const questions = item.questions?.length ? JSON.parse(JSON.stringify(item.questions)) : [newQuestion()];
+      fillChecklist({ name: item.name, questions });
+    } else {
+      clFinishRename(true);
+      let firstInvalid = null;
+      $('#clQuestions').querySelectorAll('.cl-q-input').forEach((input) => {
+        const missing = !input.value.trim();
+        clError(input, missing ? 'Enter the question.' : '');
+        if (missing && !firstInvalid) firstInvalid = input;
+      });
+      if (firstInvalid) return firstInvalid.focus();
+      // Blank options take their placeholder ("Option 1", ...).
+      const questions = ctx.draft.questions.map((q) => ({
+        text: q.text.trim(),
+        required: q.required,
+        type: q.type,
+        ...(q.type !== 'text' && { options: q.options.map((o, i) => ({ text: o.text.trim() || `Option ${i + 1}`, nested: o.nested })) }),
+      }));
+      clDialog.close();
+      ctx.onSave({ name: ctx.draft.name, questions });
+      return;
+    }
+    ctx.at += 1;
+    showClStep();
+  });
+  clBack.addEventListener('click', () => {
+    if (!clCtx || clCtx.at === 0) return clDialog.close();
+    clCtx.at -= 1;
+    showClStep();
+  });
+  clDialog.querySelectorAll('[data-close]').forEach((b) => b.addEventListener('click', () => clDialog.close()));
+  clDialog.addEventListener('click', (e) => { if (e.target === clDialog) clDialog.close(); });
+  clDialog.addEventListener('close', () => { clCtx = null; });
+
+  /* Document popup. "Use an existing document" attaches a document that other
+     states already have (the same document: items share a docId, so renaming it
+     renames it everywhere); "Create from scratch" adds a new blank document.
+     The existing list can be searched by name, type or the states it is on. */
+  const docDialog = $('#docDialog');
+  const docConfirm = $('#docConfirm');
+  const docBack = $('#docBack');
+  const docSearch = $('#docSearch');
+  let docCtx = null; // { docs, onExisting, onNew, step }
+
+  function showDocStep() {
+    const { step } = docCtx;
+    docDialog.querySelectorAll('[data-doc-step]').forEach((sec) => { sec.hidden = sec.dataset.docStep !== step; });
+    docDialog.setAttribute('aria-labelledby', step === 'how' ? 'docHowTitle' : 'docPickTitle');
+    docBack.textContent = step === 'how' ? 'Cancel' : 'Back';
+    const isNew = docDialog.querySelector('input[name="docMode"]:checked').value === 'new';
+    docConfirm.textContent = step === 'pick' || isNew ? 'Add' : 'Next';
+    (step === 'how' ? docDialog.querySelector('input[name="docMode"]:checked') : docSearch).focus();
+  }
+
+  function renderDocList() {
+    const term = docSearch.value.trim().toLowerCase();
+    const shown = docCtx.docs.filter((d) =>
+      !term || [d.name, d.docType || '', ...d.states].some((t) => t.toLowerCase().includes(term))
+    );
+    const keep = docDialog.querySelector('input[name="docPick"]:checked')?.value;
+    $('#docPickList').replaceChildren(
+      ...shown.map((d, i) =>
+        el(
+          'label',
+          { class: 'pick-card' },
+          el('input', { type: 'radio', name: 'docPick', value: d.docId, checked: keep ? keep === d.docId : i === 0 }),
+          el(
+            'span',
+            { class: 'pick-card__body' },
+            el('span', { class: 'pick-card__title' }, d.name),
+            el(
+              'span',
+              { class: 'pick-card__tags' },
+              d.docType ? el('span', { class: 'tag tag--type' }, el('span', { class: 'sr-only' }, 'Type: '), d.docType) : null,
+              ...d.states.map((name) => el('span', { class: 'tag tag--type' }, el('span', { class: 'sr-only' }, 'Attached to state: '), name))
+            )
+          )
+        )
+      )
+    );
+    // A filtered-out choice can't stay picked: fall back to the first result.
+    if (shown.length && !docDialog.querySelector('input[name="docPick"]:checked')) docDialog.querySelector('input[name="docPick"]').checked = true;
+    $('#docEmpty').hidden = shown.length > 0;
+    $('#docResultCount').textContent = term ? plural(shown.length, 'document') + ' found' : '';
+    docConfirm.disabled = !shown.length;
+  }
+  docSearch.addEventListener('input', renderDocList);
+
+  function openDocDialog({ docs, onExisting, onNew }) {
+    docCtx = { docs, onExisting, onNew, step: 'how' };
+    docDialog.querySelector('input[name="docMode"][value="existing"]').checked = true;
+    docSearch.value = '';
+    docConfirm.disabled = false;
+    renderDocList();
+    docDialog.showModal();
+    showDocStep();
+  }
+  docDialog.querySelectorAll('input[name="docMode"]').forEach((r) => r.addEventListener('change', () => docCtx && showDocStep()));
+  docConfirm.addEventListener('click', () => {
+    const ctx = docCtx;
+    if (!ctx) return;
+    const mode = docDialog.querySelector('input[name="docMode"]:checked').value;
+    if (ctx.step === 'how' && mode === 'new') {
+      docDialog.close();
+      return ctx.onNew();
+    }
+    if (ctx.step === 'how') {
+      ctx.step = 'pick';
+      renderDocList();
+      return showDocStep();
+    }
+    const docId = docDialog.querySelector('input[name="docPick"]:checked')?.value;
+    if (!docId) return;
+    docDialog.close();
+    ctx.onExisting(ctx.docs.find((d) => d.docId === docId));
+  });
+  docBack.addEventListener('click', () => {
+    if (!docCtx || docCtx.step === 'how') return docDialog.close();
+    docCtx.step = 'how';
+    docConfirm.disabled = false;
+    showDocStep();
+  });
+  docDialog.querySelectorAll('[data-close]').forEach((b) => b.addEventListener('click', () => docDialog.close()));
+  docDialog.addEventListener('click', (e) => { if (e.target === docDialog) docDialog.close(); });
+  docDialog.addEventListener('close', () => { docCtx = null; });
 
   function deleteState(id) {
     const s = stateById(id);
@@ -383,8 +1065,8 @@
     // aria-disabled (not disabled) keeps it focusable, so the reason below is reachable by keyboard.
     startBtn.setAttribute('aria-disabled', String(hasStart));
     startBtn.querySelector('.palette-item__desc').textContent = hasStart
-      ? 'Already on the canvas. A workflow has one start state.'
-      : 'This is where the workflow starts.';
+      ? 'Already on the canvas. A process flow has one start state.'
+      : 'This is where the process flow starts.';
 
     if (focusedId) nodesLayer.querySelector(`[data-id="${focusedId}"]`)?.focus();
     if (focusedAction) labelsLayer.querySelector(`[data-action="${focusedAction}"]`)?.focus();
@@ -546,7 +1228,7 @@
     if (!start) {
       issues.push({
         title: 'No start state',
-        detail: 'Every workflow needs one state where applications begin.',
+        detail: 'Every process flow needs one state where applications begin.',
         fix: { label: 'Add Start State', run: () => addState('start') },
       });
     }
@@ -712,7 +1394,7 @@
               },
             },
             icon(WARN_ICON, 14),
-            `${issueLabel} in this workflow`,
+            `${issueLabel} in this process flow`,
             icon(issuesOpen ? 'M6 15l6-6 6 6' : 'M6 9l6 6 6-6', 14)
           )
         : el('span', { class: 'stats__health stats__health--ok' }, icon('M5 12l5 5L20 7', 14), 'No issues');
@@ -728,11 +1410,11 @@
       issuesOpen
         ? el(
             'div',
-            { class: 'issues', id: 'issuesPanel', role: 'region', 'aria-label': 'Issues in this workflow', onClick: (e) => e.stopPropagation() },
+            { class: 'issues', id: 'issuesPanel', role: 'region', 'aria-label': 'Issues in this process flow', onClick: (e) => e.stopPropagation() },
             el(
               'div',
               { class: 'issues__head' },
-              el('div', {}, el('h3', {}, `${issueLabel} in this workflow`), el('p', { class: 'muted' }, 'Fix these so the workflow runs as expected. You can still download the code.')),
+              el('div', {}, el('h3', {}, `${issueLabel} in this process flow`), el('p', { class: 'muted' }, 'Fix these so the process flow runs as expected. You can still download the code.')),
               el('button', { type: 'button', class: 'icon-btn', 'aria-label': 'Close issues', onClick: closePanel }, icon(ICONS.close, 16))
             ),
             el('ul', { class: 'issues__list' }, issues.map((i) => issueCard(i, { onFix: closePanel })))
@@ -912,7 +1594,7 @@
   }
 
   const STATE_DESCRIPTION =
-    'A state is a stage in the workflow. Set up its details and the rules that apply at this stage.';
+    'A state is a stage in the process flow. Set up its details and the rules that apply at this stage.';
 
   function statePanel(s) {
     const start = startState();
@@ -991,6 +1673,7 @@
       listTitle: 'Notifications for this state',
       empty: 'Notification yet to be added',
       noun: 'Notification',
+      wizard: true,
     },
     docs: {
       title: 'Document',
@@ -1029,10 +1712,19 @@
         'aria-checked': String(data.enabled),
         'aria-labelledby': titleId,
         onClick: () => {
+          const apply = () => {
+            commit();
+            renderInspector();
+            $(`[aria-labelledby="${titleId}"]`, inspector)?.focus();
+          };
+          if (key === 'payment' && !data.enabled) {
+            // Only one state in the process flow can collect payment.
+            const other = wf.states.find((st) => st.id !== s.id && st.payment?.enabled);
+            if (other) return toast(`Only one state can collect payment. "${other.name}" already collects payment.`);
+            return askAfterPayment(data.after, (after) => { data.enabled = true; data.after = after; apply(); });
+          }
           data.enabled = !data.enabled;
-          commit();
-          renderInspector();
-          $(`[aria-labelledby="${titleId}"]`, inspector)?.focus();
+          apply();
         },
       },
       el('span', { class: 'switch__knob', 'aria-hidden': 'true' })
@@ -1052,7 +1744,12 @@
         });
         const finish = (keep) => {
           if (!renaming) return;
-          if (keep) item.name = input.value.trim() || item.name;
+          if (keep) {
+            const name = input.value.trim() || item.name;
+            // A shared document has one name in every state it is attached to.
+            if (key === 'docs' && item.docId) wf.states.forEach((st) => st.docs?.items.forEach((x) => { if (x.docId === item.docId) x.name = name; }));
+            item.name = name;
+          }
           renaming = null;
           commit();
           renderInspector();
@@ -1085,14 +1782,63 @@
       );
     };
 
-    const add = () => {
-      const used = new Set(data.items.map((i) => i.name));
-      let n = data.items.length + 1;
-      while (used.has(`${cfg.noun} ${n}`)) n++;
-      data.items.push({ id: uid(key), name: `${cfg.noun} ${n}` });
+    const push = (item) => {
+      data.items.push({ id: uid(key), ...item });
       commit();
       renderInspector();
       $(`#${titleId}`, inspector)?.closest('.toggle-card')?.querySelector('.btn--secondary')?.focus();
+    };
+    // "Notification 3" for a new item; "<name> (copy)" when the name is already used in this state.
+    const uniqueName = (base) => {
+      const used = new Set(data.items.map((i) => i.name));
+      if (!base) {
+        let n = data.items.length + 1;
+        while (used.has(`${cfg.noun} ${n}`)) n++;
+        return `${cfg.noun} ${n}`;
+      }
+      if (!used.has(base)) return base;
+      let name = `${base} (copy)`;
+      for (let n = 2; used.has(name); n++) name = `${base} (copy ${n})`;
+      return name;
+    };
+    // Documents are shared: each item carries a docId, and the same docId can sit on many states.
+    const addDocument = () => {
+      const byId = new Map();
+      wf.states.forEach((st) =>
+        (st.docs?.items || []).forEach((item) => {
+          const docId = (item.docId ||= item.id);
+          if (!byId.has(docId)) byId.set(docId, { docId, name: item.name, docType: item.docType, states: [] });
+          byId.get(docId).states.push(st.name);
+        })
+      );
+      const here = new Set(data.items.map((i) => i.docId || i.id));
+      const docs = [...byId.values()].filter((d) => !here.has(d.docId));
+      const createNew = () => {
+        const id = uid(key);
+        push({ id, docId: id, name: uniqueName() });
+      };
+      if (!docs.length) return createNew();
+      openDocDialog({
+        docs,
+        onNew: createNew,
+        onExisting: (d) => {
+          push({ docId: d.docId, name: d.name, ...(d.docType && { docType: d.docType }) });
+          toast(`"${d.name}" attached to this state`);
+        },
+      });
+    };
+    const add = () => {
+      // Notifications open the add wizard; documents and payments are added straight away.
+      if (key === 'docs') return addDocument();
+      if (!cfg.wizard) return push({ name: uniqueName() });
+      const sources = wf.states.flatMap((st) =>
+        (st[key]?.items || []).map((item) => ({
+          // Notifications saved before channels existed default to SMS.
+          item: key === 'notify' ? Object.assign(item, { channel: item.channel || 'SMS' }) : item,
+          stateName: st.name,
+        }))
+      );
+      chooseAdd({ key, sources, stateName: s.name, uniqueName, onSave: push });
     };
 
     return el(
@@ -1192,6 +1938,7 @@
     const on = (key) => s[key]?.enabled && s[key].items.length;
     if (on('docs')) out.generatedDocuments = s.docs.items.map((i) => ({ documentType: toCode(i.name) }));
     if (on('payment')) out.payments = s.payment.items.map((i) => ({ name: i.name }));
+    if (s.payment?.enabled) out.afterPayment = s.payment.after || 'PROCESS';
     if (on('notify')) out.notifications = s.notify.items.map((i) => ({ name: i.name }));
     const esc = s.escalation;
     const escAction = esc?.enabled && actionById(esc.actionId);
@@ -1334,7 +2081,7 @@
     const form = (s.form ||= { id: uid('f'), name: DEFAULT_FORM_NAME });
     return section(
       'Form',
-      { info: 'The form people fill in to start this workflow.' },
+      { info: 'The form people fill in to start this process flow.' },
       el(
         'div',
         { class: 'inner-card inner-card--muted' },
@@ -1346,9 +2093,9 @@
 
   /* ---------- Checklist on an action ----------
      Same pattern as Notification: heading -> grey card with a switch -> white
-     list card. Add puts in "Checklist 1" straight away (no dropdown); edit
-     renames it in place; delete removes it. Only one checklist per action, so
-     the Add button is hidden while one exists. */
+     list card. Add opens the checklist popup (create or duplicate, then the
+     questions); edit renames it in place; delete removes it. Only one
+     checklist per action, so the Add button is hidden while one exists. */
   let renamingChecklist = false;
 
   function checklistSection(a) {
@@ -1436,12 +2183,18 @@
               !data.item
                 ? el('button', {
                     type: 'button', class: 'btn btn--secondary btn--block inner-card__add', 'data-add': 'checklist',
-                    onClick: () => {
-                      data.item = { id: uid('c'), name: 'Checklist 1' };
-                      commit();
-                      renderInspector();
-                      toast('Checklist 1 added');
-                    },
+                    onClick: () => openChecklistDialog({
+                      sources: wf.actions
+                        .filter((x) => x.id !== a.id && x.checklist?.item)
+                        .map((x) => ({ item: x.checklist.item, actionName: x.name })),
+                      actionName: a.name,
+                      onSave: (item) => {
+                        data.item = { id: uid('c'), ...item };
+                        commit();
+                        renderInspector();
+                        toast(`${item.name} added`);
+                      },
+                    }),
                   }, icon(ICONS.plus), 'Add Checklist to Action')
                 : null
             )
@@ -1472,7 +2225,7 @@
 
 
     return [
-      panelHead('Action Properties', 'An action moves the workflow from one state to the next. Set up its details, who can take it, and what is required when it is taken.', () => select(null)),
+      panelHead('Action Properties', 'An action moves the process flow from one state to the next. Set up its details, who can take it, and what is required when it is taken.', () => select(null)),
       el(
         'div',
         { class: 'panel-body' },
@@ -1596,7 +2349,7 @@
     const s = stateById(id);
     if (!s) return;
     if (s.type === 'end') {
-      toast('End states close the workflow, so no actions can leave them.');
+      toast('End states close the process flow, so no actions can leave them.');
       return;
     }
     connectFrom = id;
@@ -1936,7 +2689,7 @@
     return {
       BusinessServices: [
         {
-          businessService: toCode(wf.name) || 'WORKFLOW',
+          businessService: toCode(wf.name) || 'PROCESS_FLOW',
           business: '',
           businessServiceSla: ordered.reduce((sum, s) => sum + (s.type === 'end' ? 0 : s.slaHours), 0) * HOUR_MS,
           states: ordered.map((s) => ({
@@ -2004,7 +2757,7 @@
   });
 
   $('#downloadBtn').addEventListener('click', () => {
-    const file = `${(toCode(wf.name) || 'workflow').toLowerCase()}-workflow.json`;
+    const file = `${(toCode(wf.name) || 'process-flow').toLowerCase()}-process-flow.json`;
     const url = URL.createObjectURL(new Blob([configText], { type: 'application/json' }));
     const link = el('a', { href: url, download: file });
     document.body.append(link);
@@ -2022,7 +2775,7 @@
     clearTimeout(saveTimer);
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(wf));
-      $('#savedNote').replaceChildren(el('span', { 'aria-hidden': 'true' }, '✓'), ' Workflow saved');
+      $('#savedNote').replaceChildren(el('span', { 'aria-hidden': 'true' }, '✓'), ' Process flow saved');
     } catch {
       toast('Could not save. Your browser is blocking storage.');
     }

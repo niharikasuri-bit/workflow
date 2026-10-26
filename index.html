@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Workflow Designer</title>
+  <title>Process Flow Designer</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&family=Roboto+Mono:wght@400&display=swap" rel="stylesheet" />
@@ -15,7 +15,7 @@
       <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M19 12H5M11 6l-6 6 6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
       Back to Module Dashboard
     </button>
-    <h1 class="topbar__title">Workflow</h1>
+    <h1 class="topbar__title">Process Flow</h1>
     <button type="button" class="btn btn--tertiary topbar__help" id="headerHelpBtn" aria-haspopup="dialog">
       <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><circle cx="12" cy="12" r="9.5" fill="none" stroke="currentColor" stroke-width="2"/><path d="M9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .9-1 1.6V14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="12" cy="17.2" r="1.2" fill="currentColor"/></svg>
       Help
@@ -39,7 +39,7 @@
             <span class="palette-item__icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="18" height="18"><path d="M7 4.5v15l12-7.5z" fill="currentColor" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg></span>
             <span class="palette-item__text">
               <span class="palette-item__title">Start state</span>
-              <span class="palette-item__desc">This is where the workflow starts.</span>
+              <span class="palette-item__desc">This is where the process flow starts.</span>
             </span>
           </button>
         </li>
@@ -48,7 +48,7 @@
             <span class="palette-item__icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><g transform="rotate(90 12 12)"><circle cx="6" cy="19" r="2.5" fill="currentColor"/><path d="M8.5 19h9a3.5 3.5 0 0 0 0-7h-11a3.5 3.5 0 0 1 0-7H15.5"/><circle cx="18" cy="5" r="2.5" fill="currentColor"/></g></svg></span>
             <span class="palette-item__text">
               <span class="palette-item__title">Intermediate state</span>
-              <span class="palette-item__desc">This is a step inside the workflow.</span>
+              <span class="palette-item__desc">This is a step inside the process flow.</span>
             </span>
           </button>
         </li>
@@ -57,7 +57,7 @@
             <span class="palette-item__icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="16" height="16"><rect x="4" y="4" width="16" height="16" rx="3" fill="currentColor"/></svg></span>
             <span class="palette-item__text">
               <span class="palette-item__title">End state</span>
-              <span class="palette-item__desc">This is where the workflow finishes.</span>
+              <span class="palette-item__desc">This is where the process flow finishes.</span>
             </span>
           </button>
         </li>
@@ -65,7 +65,7 @@
     </aside>
 
     <!-- Middle: canvas -->
-    <section class="canvas" aria-label="Workflow canvas">
+    <section class="canvas" aria-label="Process flow canvas">
       <div class="canvas__bar">
         <div class="canvas__left">
           <div class="stats" id="stats" aria-live="polite"></div>
@@ -102,7 +102,7 @@
           <!-- Same container as the Help guide, minus the close button; it goes away once a state is added -->
           <section class="empty-guide" aria-labelledby="emptyGuideTitle">
             <div class="empty-guide__head">
-              <h2 id="emptyGuideTitle">Guide to make a workflow</h2>
+              <h2 id="emptyGuideTitle">Guide to make a process flow</h2>
               <p class="muted">Six steps from an empty canvas to downloadable code.</p>
             </div>
             <div class="empty-guide__body"><!-- steps copied in from the Help guide --></div>
@@ -159,7 +159,7 @@
   <dialog class="modal" id="configDialog" aria-labelledby="configTitle">
     <div class="modal__head">
       <div>
-        <h2 id="configTitle" class="modal__title--blue">Workflow configuration</h2>
+        <h2 id="configTitle" class="modal__title--blue">Process flow configuration</h2>
         <p class="muted" id="configDesc">Copy or download this code, then import it into Studio to create a new service.</p>
       </div>
       <button type="button" class="icon-btn" data-close aria-label="Close">
@@ -178,11 +178,11 @@
     </div>
   </dialog>
 
-  <!-- Guide to make a workflow -->
+  <!-- Guide to make a process flow -->
   <dialog class="modal modal--narrow" id="helpDialog" aria-labelledby="helpTitle">
     <div class="modal__head">
       <div>
-        <h2 id="helpTitle">Guide to make a workflow</h2>
+        <h2 id="helpTitle">Guide to make a process flow</h2>
         <p class="muted">Six steps from an empty canvas to downloadable code.</p>
       </div>
       <button type="button" class="icon-btn" data-close aria-label="Close">
@@ -193,11 +193,11 @@
       <ol class="help-steps">
         <li>
           <strong>Add a start state</strong>
-          <span>Click <em>Start state</em> in the left panel, or drag it onto the canvas. A workflow has one start state, and its form is included.</span>
+          <span>Click <em>Start state</em> in the left panel, or drag it onto the canvas. A process flow has one start state, and its form is included.</span>
         </li>
         <li>
           <strong>Add the other states</strong>
-          <span>Add an intermediate state for each step, and an end state for every way the workflow can finish. Drag states on the canvas to arrange them.</span>
+          <span>Add an intermediate state for each step, and an end state for every way the process flow can finish. Drag states on the canvas to arrange them.</span>
         </li>
         <li>
           <strong>Connect states with actions</strong>
@@ -235,6 +235,238 @@
     <div class="confirm__actions">
       <button type="button" class="btn btn--secondary" data-close id="delCancel">Cancel</button>
       <button type="button" class="btn btn--primary" id="delConfirm">Delete</button>
+    </div>
+  </dialog>
+
+  <!-- Add wizard (notifications): how to add -> type or pick -> details.
+       The wording is filled in by chooseAdd() in app.js for the item being added. -->
+  <dialog class="modal add-choice" id="addDialog" aria-labelledby="addTitle">
+    <div class="add-choice__body">
+      <button type="button" class="icon-btn add-choice__close" data-close aria-label="Close">
+        <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+      </button>
+      <div class="wizard">
+        <span class="sr-only" id="addStepText"></span>
+        <span class="wizard__bars" id="addBars" aria-hidden="true"></span>
+      </div>
+
+      <section data-add-step="how">
+        <h2 class="add-choice__title" id="addTitle"></h2>
+        <p class="add-choice__desc" id="addDesc"></p>
+        <fieldset class="add-choice__options">
+          <legend class="sr-only" id="addLegend"></legend>
+          <label class="radio-card">
+            <input type="radio" name="addMode" value="new" checked>
+            <span><span class="radio-card__label" id="addNewLabel"></span><span class="radio-card__text" id="addNewHint"></span></span>
+          </label>
+          <label class="radio-card">
+            <input type="radio" name="addMode" value="copy">
+            <span><span class="radio-card__label" id="addCopyLabel"></span><span class="radio-card__text" id="addCopyHint"></span></span>
+          </label>
+        </fieldset>
+      </section>
+
+      <section data-add-step="type" hidden>
+        <h2 class="add-choice__title" id="addTypeTitle"></h2>
+        <p class="add-choice__desc" id="addTypeDesc"></p>
+        <fieldset class="type-tiles">
+          <legend class="sr-only" id="addTypeLegend"></legend>
+          <div class="type-tiles__grid" id="addTypeTiles"></div>
+        </fieldset>
+      </section>
+
+      <section data-add-step="pick" hidden>
+        <h2 class="add-choice__title" id="addPickTitle"></h2>
+        <p class="add-choice__desc" id="addPickDesc"></p>
+        <div class="pick-list" id="addPickList" role="radiogroup" aria-labelledby="addPickTitle"></div>
+      </section>
+
+      <section data-add-step="form" hidden>
+        <div class="nf-head">
+          <div class="nf-title-row" id="nfTitleRow">
+            <h2 class="add-choice__title" id="nfTitle"></h2>
+            <button type="button" class="icon-btn nf-rename" id="nfRename">
+              <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16zM13.5 6.5l4 4" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>
+            </button>
+          </div>
+          <input class="input nf-name" id="nfName" type="text" autocomplete="off" hidden>
+          <div class="pick-card__tags" id="nfTags"></div>
+        </div>
+        <div class="nf-fields">
+          <div class="nf-info" id="nfSmsInfo" role="note" aria-labelledby="nfSmsInfoTitle">
+            <p class="nf-info__title" id="nfSmsInfoTitle">
+              <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><circle cx="12" cy="12" r="10" fill="currentColor"/><path d="M12 11v6M12 7.5v.5" stroke="#fff" stroke-width="2.2" stroke-linecap="round"/></svg>
+              Info
+            </p>
+            <p class="nf-info__text">Certain countries require SMS templates to be approved by telecom providers before sending. Please verify the requirements for your country and register the template with your SMS provider if needed.</p>
+          </div>
+          <div class="nf-box">
+            <div class="nf-row">
+              <div class="digit-label-row"><label class="digit-label" for="nfState">Process flow state <span class="req">*</span></label></div>
+              <div class="nf-control">
+                <select class="digit-employeeCard-input nf-state" id="nfState" disabled></select>
+              </div>
+            </div>
+          </div>
+          <div class="nf-box" id="nfSubjectField">
+            <div class="nf-row">
+              <div class="digit-label-row"><label class="digit-label" for="nfSubject">Subject <span class="req">*</span></label></div>
+              <div class="nf-control">
+                <div class="digit-text-input-field">
+                  <input class="digit-employeeCard-input" id="nfSubject" type="text" placeholder="Enter subject" autocomplete="off" aria-describedby="nfSubjectErr">
+                </div>
+                <div class="nf-meta"><span class="field__error" id="nfSubjectErr" hidden></span></div>
+              </div>
+            </div>
+          </div>
+          <div class="nf-box">
+            <div class="nf-row">
+              <div class="digit-label-row"><label class="digit-label" for="nfBody"><span id="nfBodyLabel"></span> <span class="req">*</span></label></div>
+              <div class="nf-control">
+                <textarea class="digit-employee-card-textarea-field" id="nfBody" maxlength="500" aria-describedby="nfBodyErr nfCount"></textarea>
+                <div class="nf-meta">
+                  <span class="field__error" id="nfBodyErr" hidden></span>
+                  <span class="nf-count" id="nfCount">0/500</span>
+                </div>
+              </div>
+            </div>
+            <div class="nf-row">
+              <div class="nf-vars-head">
+                <span class="nf-label" id="nfVarsLabel">Personalization Variables</span>
+              </div>
+              <div class="var-chips" id="nfVars" role="group" aria-labelledby="nfVarsLabel"></div>
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
+    <div class="modal__foot">
+      <button type="button" class="btn btn--secondary" id="addBack">Cancel</button>
+      <button type="button" class="btn btn--primary" id="addConfirm">Next</button>
+    </div>
+  </dialog>
+
+  <!-- Payment: asked when payment is turned on, before it is enabled -->
+  <dialog class="modal add-choice pay-choice" id="payDialog" aria-labelledby="payTitle" aria-describedby="payDesc">
+    <div class="add-choice__body">
+      <button type="button" class="icon-btn add-choice__close" data-close aria-label="Close">
+        <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+      </button>
+      <h2 class="add-choice__title" id="payTitle">Next step after payment</h2>
+      <p class="add-choice__desc" id="payDesc">Select what happens when the payment is successful.</p>
+      <fieldset class="add-choice__options">
+        <legend class="sr-only">Next step after payment</legend>
+        <label class="radio-card">
+          <input type="radio" name="payAfter" value="PROCESS" checked>
+          <span><span class="radio-card__label">Continue to the next state</span><span class="radio-card__text">The process flow continues to the next state.</span></span>
+        </label>
+        <label class="radio-card">
+          <input type="radio" name="payAfter" value="TERMINATE">
+          <span><span class="radio-card__label">End the process flow</span><span class="radio-card__text">The process flow ends. There are no more steps.</span></span>
+        </label>
+      </fieldset>
+    </div>
+    <div class="modal__foot">
+      <button type="button" class="btn btn--secondary" data-close>Cancel</button>
+      <button type="button" class="btn btn--primary" id="payConfirm">Confirm</button>
+    </div>
+  </dialog>
+
+  <!-- Checklist for an action: how to add -> (pick to duplicate) -> question builder -->
+  <dialog class="modal add-choice cl-choice" id="clDialog" aria-labelledby="clHowTitle">
+    <div class="add-choice__body">
+      <button type="button" class="icon-btn add-choice__close" data-close aria-label="Close">
+        <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+      </button>
+      <div class="wizard" id="clWizard">
+        <span class="sr-only" id="clStepText"></span>
+        <span class="wizard__bars" id="clBars" aria-hidden="true"></span>
+      </div>
+
+      <section data-cl-step="how">
+        <h2 class="add-choice__title" id="clHowTitle">How would you like to add the checklist?</h2>
+        <p class="add-choice__desc">Create a new checklist, or duplicate one that already exists in this process flow.</p>
+        <fieldset class="add-choice__options">
+          <legend class="sr-only">How to add the checklist</legend>
+          <label class="radio-card">
+            <input type="radio" name="clMode" value="new" checked>
+            <span><span class="radio-card__label">Create new checklist</span><span class="radio-card__text">Start with a blank checklist.</span></span>
+          </label>
+          <label class="radio-card">
+            <input type="radio" name="clMode" value="copy">
+            <span><span class="radio-card__label">Duplicate existing checklist</span><span class="radio-card__text">Copy a checklist and edit it.</span></span>
+          </label>
+        </fieldset>
+      </section>
+
+      <section data-cl-step="pick" hidden>
+        <h2 class="add-choice__title" id="clPickTitle">Select Checklist</h2>
+        <p class="add-choice__desc">Select the checklist to duplicate. You can edit it in the next step.</p>
+        <div class="pick-list" id="clPickList" role="radiogroup" aria-labelledby="clPickTitle"></div>
+      </section>
+
+      <section data-cl-step="build" hidden>
+        <div class="nf-head">
+          <div class="nf-title-row" id="clTitleRow">
+            <h2 class="add-choice__title" id="clTitle"></h2>
+            <button type="button" class="icon-btn nf-rename" id="clRename" aria-label="Rename checklist">
+              <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16zM13.5 6.5l4 4" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>
+            </button>
+          </div>
+          <input class="input nf-name" id="clName" type="text" aria-label="Checklist name" autocomplete="off" hidden>
+        </div>
+        <div class="nf-box cl-context">
+          <div class="nf-row">
+            <div class="digit-label-row"><label class="digit-label" for="clAction">Action <span class="req">*</span></label></div>
+            <div class="nf-control"><select class="digit-employeeCard-input nf-state" id="clAction" disabled></select></div>
+          </div>
+        </div>
+        <div class="cl-questions" id="clQuestions"></div>
+      </section>
+    </div>
+    <div class="modal__foot">
+      <button type="button" class="btn btn--secondary" id="clBack">Cancel</button>
+      <button type="button" class="btn btn--primary" id="clConfirm">Next</button>
+    </div>
+  </dialog>
+
+  <!-- Document: use an existing document (shared between states) or create from scratch -->
+  <dialog class="modal add-choice doc-choice" id="docDialog" aria-labelledby="docHowTitle">
+    <div class="add-choice__body">
+      <button type="button" class="icon-btn add-choice__close" data-close aria-label="Close">
+        <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+      </button>
+      <section data-doc-step="how">
+        <h2 class="add-choice__title" id="docHowTitle">How would you like to add the document?</h2>
+        <p class="add-choice__desc">Use a document that is already in this process flow, or create a new one.</p>
+        <fieldset class="add-choice__options">
+          <legend class="sr-only">How to add the document</legend>
+          <label class="radio-card">
+            <input type="radio" name="docMode" value="existing" checked>
+            <span><span class="radio-card__label">Use an existing document</span><span class="radio-card__text">Attach a document that other states already use. One document can be attached to many states.</span></span>
+          </label>
+          <label class="radio-card">
+            <input type="radio" name="docMode" value="new">
+            <span><span class="radio-card__label">Create from scratch</span><span class="radio-card__text">Add a new, blank document to this state.</span></span>
+          </label>
+        </fieldset>
+      </section>
+
+      <section data-doc-step="pick" hidden>
+        <h2 class="add-choice__title" id="docPickTitle">Select Document</h2>
+        <p class="add-choice__desc">Search by document name, type or state.</p>
+        <div class="doc-search">
+          <input class="digit-employeeCard-input doc-search__input" id="docSearch" type="search" placeholder="Search documents" autocomplete="off" aria-label="Search documents by name, type or state" aria-controls="docPickList">
+          <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5" fill="none" stroke="#505A5F" stroke-width="2"/><path d="M15.5 15.5L21 21" stroke="#505A5F" stroke-width="2" stroke-linecap="round"/></svg>
+        </div>
+        <p class="sr-only" id="docResultCount" role="status" aria-live="polite"></p>
+        <div class="pick-list" id="docPickList" role="radiogroup" aria-labelledby="docPickTitle"></div>
+        <p class="doc-empty" id="docEmpty" hidden>No documents match your search.</p>
+      </section>
+    </div>
+    <div class="modal__foot">
+      <button type="button" class="btn btn--secondary" id="docBack">Cancel</button>
+      <button type="button" class="btn btn--primary" id="docConfirm">Next</button>
     </div>
   </dialog>
 
