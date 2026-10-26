@@ -1098,6 +1098,8 @@ button { cursor: pointer; }
 /* Tags: state (neutral) and notification type (SMS blue, Email purple) */
 .tag { display: inline-flex; align-items: center; height: 24px; padding: 0 8px; border-radius: 4px; font-size: 12px; font-weight: 500; background: var(--surface-3); color: var(--text); }
 .tag--type { background: var(--mid-bg); color: var(--mid); } /* blue info tag, no icon */
+/* "Select Notification" cards: the SMS / Email tag is amber so it stands apart from the blue state tag */
+#addPickList .tag--channel { background: var(--warning-bg); color: var(--warning); }
 
 /* Notification type tiles (SMS / Email) */
 /* SMS / Email cards, centred, matching the user's reference (they never stretch to the popup width) */

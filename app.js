@@ -264,6 +264,40 @@
   ];
   const addDialog = $('#addDialog');
   const addPickList = $('#addPickList');
+  let addCtxSources = [];
+
+  // "Select <item>" list, filtered by the search field (name, type or state).
+  function renderAddPick() {
+    const term = $('#addSearch').value.trim().toLowerCase();
+    const typeKey = addPickList.dataset.typeKey;
+    const keep = addPickList.querySelector('input:checked')?.value;
+    const shown = addCtxSources
+      .map((src, i) => ({ src, i }))
+      .filter(({ src }) => !term || [src.item.name, src.item[typeKey] || '', src.stateName].some((t) => t.toLowerCase().includes(term)));
+    addPickList.replaceChildren(
+      ...shown.map(({ src, i }) =>
+        el(
+          'label',
+          { class: 'pick-card' },
+          el('input', { type: 'radio', name: 'addPick', value: String(i) }),
+          el(
+            'span',
+            { class: 'pick-card__body' },
+            el('span', { class: 'pick-card__title' }, src.item.name),
+            el('span', { class: 'pick-card__tags' }, stateTag(src.stateName), typeTag(src.item[typeKey]))
+          )
+        )
+      )
+    );
+    // Keep the picked card if it is still shown; otherwise pick the first result.
+    const radios = [...addPickList.querySelectorAll('input')];
+    const pick = radios.find((r) => r.value === keep) || radios[0];
+    if (pick) pick.checked = true;
+    $('#addEmpty').hidden = shown.length > 0;
+    $('#addResultCount').textContent = term ? `${shown.length} found` : '';
+    if (addCtx?.path[addCtx.at] === 'pick') addConfirm.disabled = !shown.length;
+  }
+  $('#addSearch').addEventListener('input', renderAddPick);
   const addConfirm = $('#addConfirm');
   const addBack = $('#addBack');
   const nfTitle = $('#nfTitle');
@@ -278,7 +312,7 @@
   };
   const picked = (name) => addDialog.querySelector(`input[name="${name}"]:checked`)?.value;
   const typeTag = (type) =>
-    type ? el('span', { class: 'tag tag--type' }, el('span', { class: 'sr-only' }, 'Type: '), type) : null;
+    type ? el('span', { class: 'tag tag--type tag--channel' }, el('span', { class: 'sr-only' }, 'Type: '), type) : null;
   // State names show as blue info tags, like the type tags.
   const stateTag = (name) => el('span', { class: 'tag tag--type' }, el('span', { class: 'sr-only' }, 'State: '), name);
 
@@ -286,16 +320,18 @@
     const { path, at } = addCtx;
     const step = path[at];
     addDialog.querySelectorAll('[data-add-step]').forEach((sec) => { sec.hidden = sec.dataset.addStep !== step; });
+    addDialog.querySelector('.wizard').hidden = path.length < 2; // no progress bars when editing
     $('#addBars').replaceChildren(...path.map((_, i) => el('span', { class: `wizard__bar${i <= at ? ' is-on' : ''}` })));
     $('#addStepText').textContent = `Step ${at + 1} of ${path.length}`;
     const heading = addDialog.querySelector(`[data-add-step="${step}"] h2`);
     addDialog.setAttribute('aria-labelledby', heading.id);
     addBack.textContent = at === 0 ? 'Cancel' : 'Back';
     addConfirm.textContent = step === 'form' ? 'Save' : 'Next';
+    addConfirm.disabled = step === 'pick' && !addPickList.querySelector('input');
     const first = {
       how: () => addDialog.querySelector('input[name="addMode"]:checked'),
       type: () => addDialog.querySelector('input[name="addType"]:checked'),
-      pick: () => addPickList.querySelector('input:checked'),
+      pick: () => $('#addSearch'),
       form: () => (nfSubject.closest('[hidden]') ? nfBody : nfSubject),
     }[step]();
     first?.focus();
@@ -375,7 +411,7 @@
     updateCount();
   }
 
-  function chooseAdd({ key, sources, stateName, uniqueName, onSave }) {
+  function chooseAdd({ key, sources, stateName, uniqueName, onSave, edit }) {
     const wiz = ADD_WIZARDS[key];
     const noun = wiz.noun;
     const n = noun.toLowerCase();
@@ -411,23 +447,21 @@
         return tile;
       })
     );
-    addPickList.replaceChildren(
-      ...sources.map((src, i) =>
-        el(
-          'label',
-          { class: 'pick-card' },
-          el('input', { type: 'radio', name: 'addPick', value: String(i), checked: i === 0 }),
-          el(
-            'span',
-            { class: 'pick-card__body' },
-            el('span', { class: 'pick-card__title' }, src.item.name),
-            el('span', { class: 'pick-card__tags' }, stateTag(src.stateName), typeTag(src.item[wiz.typeKey]))
-          )
-        )
-      )
-    );
+    const search = $('#addSearch');
+    search.value = '';
+    search.placeholder = `Search ${n}s`;
+    search.setAttribute('aria-label', `Search ${n}s by name, type or state`);
+    $('#addEmpty').textContent = `No ${n}s match your search.`;
+    addPickList.dataset.typeKey = wiz.typeKey;
+    addCtxSources = sources;
+    renderAddPick();
     addDialog.querySelector('input[value="new"]').checked = true;
     addCtx = { wiz, sources, stateName, uniqueName, onSave, path: sources.length ? ['how', 'type', 'form'] : ['type', 'form'], at: 0 };
+    // Editing opens straight on the details, filled in with the saved values.
+    if (edit) {
+      addCtx.path = ['form'];
+      fillForm({ type: edit[wiz.typeKey], name: edit.name, subject: edit.subject, body: edit.body });
+    }
     addDialog.showModal();
     showAddStep();
   }
@@ -1764,8 +1798,30 @@
         { class: 'logic-item', 'data-item': item.id },
         el('span', { class: 'logic-item__name' }, item.name),
         el('button', {
-          type: 'button', class: 'logic-item__btn', 'aria-label': `Rename ${item.name}`, title: 'Edit',
-          onClick: () => { renaming = { stateId: s.id, key, id: item.id }; renderInspector({ focusRename: true }); },
+          type: 'button', class: 'logic-item__btn', 'aria-label': cfg.wizard ? `Edit ${item.name}` : `Rename ${item.name}`, title: 'Edit',
+          onClick: () => {
+            if (!cfg.wizard) {
+              renaming = { stateId: s.id, key, id: item.id };
+              return renderInspector({ focusRename: true });
+            }
+            // Notifications open the same details popup used when adding one.
+            if (key === 'notify') item.channel ||= 'SMS';
+            chooseAdd({
+              key,
+              sources: [],
+              stateName: s.name,
+              uniqueName: () => item.name,
+              edit: item,
+              onSave: (values) => {
+                delete item.subject;
+                Object.assign(item, values);
+                commit();
+                renderInspector();
+                $(`[data-item="${item.id}"] .logic-item__btn`, inspector)?.focus();
+                toast(`${item.name} updated`);
+              },
+            });
+          },
         }, icon('M4 20h16M14.5 4.5l3 3L9 16H6v-3z', 18)),
         el('button', {
           type: 'button', class: 'logic-item__btn', 'aria-label': `Delete ${item.name}`, title: 'Delete',

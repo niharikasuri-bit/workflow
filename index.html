@@ -278,7 +278,13 @@
       <section data-add-step="pick" hidden>
         <h2 class="add-choice__title" id="addPickTitle"></h2>
         <p class="add-choice__desc" id="addPickDesc"></p>
+        <div class="doc-search">
+          <input class="digit-employeeCard-input doc-search__input" id="addSearch" type="search" autocomplete="off" aria-controls="addPickList">
+          <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5" fill="none" stroke="#505A5F" stroke-width="2"/><path d="M15.5 15.5L21 21" stroke="#505A5F" stroke-width="2" stroke-linecap="round"/></svg>
+        </div>
+        <p class="sr-only" id="addResultCount" role="status" aria-live="polite"></p>
         <div class="pick-list" id="addPickList" role="radiogroup" aria-labelledby="addPickTitle"></div>
+        <p class="doc-empty" id="addEmpty" hidden></p>
       </section>
 
       <section data-add-step="form" hidden>
