@@ -384,7 +384,7 @@
     text('#addDesc', `Create a new ${n}, or duplicate one that already exists in this process flow.`);
     text('#addLegend', `How to add the ${n}`);
     text('#addNewLabel', `Create new ${n}`);
-    text('#addNewHint', `Start with a blank ${n}.`);
+    text('#addNewHint', `Create a new ${n} for this state.`);
     text('#addCopyLabel', `Duplicate existing ${n}`);
     text('#addCopyHint', `Copy a ${n} and edit it.`);
     text('#addTypeTitle', wiz.typeTitle);
@@ -825,7 +825,7 @@
 
   /* Document popup. "Use an existing document" attaches a document that other
      states already have (the same document: items share a docId, so renaming it
-     renames it everywhere); "Create from scratch" adds a new blank document.
+     renames it everywhere); "Create from scratch" adds a new document.
      The existing list can be searched by name, type or the states it is on. */
   const docDialog = $('#docDialog');
   const docConfirm = $('#docConfirm');
@@ -838,8 +838,8 @@
     docDialog.querySelectorAll('[data-doc-step]').forEach((sec) => { sec.hidden = sec.dataset.docStep !== step; });
     docDialog.setAttribute('aria-labelledby', step === 'how' ? 'docHowTitle' : 'docPickTitle');
     docBack.textContent = step === 'how' ? 'Cancel' : 'Back';
-    const isNew = docDialog.querySelector('input[name="docMode"]:checked').value === 'new';
-    docConfirm.textContent = step === 'pick' || isNew ? 'Add' : 'Next';
+    // The button label follows the step, never the option picked.
+    docConfirm.textContent = step === 'pick' ? 'Add' : 'Next';
     (step === 'how' ? docDialog.querySelector('input[name="docMode"]:checked') : docSearch).focus();
   }
 
@@ -886,7 +886,6 @@
     docDialog.showModal();
     showDocStep();
   }
-  docDialog.querySelectorAll('input[name="docMode"]').forEach((r) => r.addEventListener('change', () => docCtx && showDocStep()));
   docConfirm.addEventListener('click', () => {
     const ctx = docCtx;
     if (!ctx) return;
