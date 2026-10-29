@@ -500,7 +500,8 @@ button { cursor: pointer; }
 .modal[open] { display: flex; flex-direction: column; }
 .modal::backdrop { background: rgba(20, 20, 20, 0.45); }
 .modal__head { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; padding: 20px 24px 12px; }
-.modal__head h2 { font-size: 18px; margin-bottom: 4px; }
+.modal__head h2 { font-size: 24px; line-height: 1.3; margin-bottom: 4px; }
+.modal__head p { font-size: 16px; } /* every popup: 24px title, 16px description */
 .tabs { display: flex; gap: 4px; padding: 0 24px; border-bottom: 1px solid var(--border); }
 .tab { border: 0; background: none; padding: 10px 14px; font-weight: 500; color: var(--muted); border-bottom: 3px solid transparent; margin-bottom: -1px; }
 .tab[aria-selected='true'] { color: var(--primary); border-bottom-color: var(--primary); }
@@ -814,9 +815,8 @@ button { cursor: pointer; }
 .inner-card--muted { background: var(--surface-2); }
 .inner-card--muted .role-check,
 .inner-card--muted .logic-item { background: var(--surface); }
-/* A picked role gets the DIGIT selected look (warm tint, orange border, bold text);
-   an unpicked one stays white with a grey border and muted text */
-.inner-card--muted .role-check:has(input:checked) { background: #fff8f5; font-weight: 700; color: var(--secondary); }
+/* A picked role gets the DIGIT warm tint; an unpicked one stays white */
+.inner-card--muted .role-check:has(input:checked) { background: #fff8f5; }
 
 /* Left panel heading: same full-width divider as the properties panel head */
 .sidebar__head { padding: 18px 16px 16px; border-bottom: 1px solid var(--border); margin-bottom: 16px; }
@@ -1030,24 +1030,26 @@ button { cursor: pointer; }
 .confirm__actions .btn { min-height: 44px; font-size: 16px; }
 
 /* Compact delete popup */
-.modal.confirm { width: min(420px, calc(100vw - 32px)); padding: 20px 24px 20px; }
+.modal.confirm { width: min(550px, calc(100vw - 32px)); padding: 20px 24px 20px; }
 .modal.confirm[open] { gap: 8px; }
 .confirm__close { top: 8px; right: 8px; width: 32px; height: 32px; }
 .confirm__icon { margin-top: 4px; }
-.confirm__title { font-size: 18px; line-height: 1.35; }
-.confirm__desc { font-size: 14px; line-height: 1.5; color: var(--muted); }
+.confirm__title { font-size: 24px; line-height: 1.3; }
+.confirm__desc { font-size: 16px; line-height: 1.5; color: var(--muted); }
 .confirm__desc strong { color: var(--text); }
 .confirm__actions { gap: 12px; margin-top: 12px; }
-.confirm__actions .btn { min-height: 40px; font-size: 14px; }
-.confirm__actions .btn { min-height: 36px; font-size: 14px; padding: 0 12px; }
+/* DIGIT button sizes (medium-weight text): L = 40px tall / 20px text, M = 32px / 16px, S = 24px / 14px */
+.btn.btn--l { height: 40px; min-height: 40px; font-size: 20px; font-weight: 500; }
+.btn.btn--m { height: 32px; min-height: 32px; font-size: 16px; font-weight: 500; }
+.btn.btn--s { height: 24px; min-height: 24px; padding: 0 8px; font-size: 14px; font-weight: 500; }
 
 /* Add popup: create new or duplicate existing. Radio cards follow the
    attendance app's RadioCard (#FAFAFA card, orange border + #FFF8F5 when picked). */
 .modal.add-choice { width: min(800px, calc(100vw - 32px)); position: fixed; }
 .add-choice__body { position: relative; padding: 24px 24px 20px; overflow-y: auto; flex: 1; min-height: 0; }
 .add-choice__close { position: absolute; top: 12px; right: 12px; width: 32px; height: 32px; }
-.add-choice__title { font-size: 20px; line-height: 1.35; color: var(--secondary); padding-right: 32px; }
-.add-choice__desc { margin: 4px 0 0; font-size: 14px; line-height: 1.5; color: var(--muted); }
+.add-choice__title { font-size: 24px; line-height: 1.3; color: var(--secondary); padding-right: 32px; }
+.add-choice__desc { margin: 4px 0 0; font-size: 16px; line-height: 1.5; color: var(--muted); }
 .add-choice__options { margin: 16px 0 0; padding: 0; border: 0; display: grid; gap: 12px; }
 .radio-card {
   display: flex; align-items: flex-start; gap: 12px;
@@ -1146,6 +1148,10 @@ button { cursor: pointer; }
 .nf-info { padding: 12px 16px; background: #deefff; border-left: 4px solid var(--mid); border-radius: 4px; }
 .nf-info__title { display: flex; align-items: center; gap: 8px; margin: 0; font-size: 16px; font-weight: 700; color: var(--mid); }
 .nf-info__text { margin: 6px 0 0 28px; font-size: 14px; line-height: 1.5; color: var(--text); }
+/* Info-coloured primary button (filled blue, white text) inside an info box */
+.btn.btn--info { background: var(--mid); color: #fff; border-color: var(--mid); }
+.btn.btn--info:hover { background: #00469a; border-color: #00469a; }
+.nf-info__btn { margin: 12px 0 0 28px; }
 
 /* DIGIT TextInput / TextArea (digit-ui-components-css): 40px field, 1px #787878 border,
    4px corners (user's choice), 16px Roboto, 12px left padding; focus and error get a 1.5px border.
@@ -1199,7 +1205,18 @@ button { cursor: pointer; }
 .var-chip svg { color: var(--primary); flex: none; }
 .var-chip:hover { border-color: var(--primary); background: var(--primary-bg); color: var(--primary-hover); }
 
-.modal.pay-choice { width: min(560px, calc(100vw - 32px)); }
+/* Payment: same 800px width as the notification popup (both steps); label-left layout */
+.pay-calc { display: grid; gap: 20px; }
+.pay-after-err { margin: 8px 0 0; font-size: 14px; }
+.pay-calc input[type='number'] { -moz-appearance: textfield; }
+.pay-calc input[type='number']::-webkit-inner-spin-button,
+.pay-calc input[type='number']::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+.pay-calc[hidden], #payIntegration[hidden] { display: none; }
+.pay-modes { display: grid; gap: 12px; }
+.pay-modes .radio-card { background: var(--surface); } /* each mode card is white; a ticked one keeps the warm tint */
+.pay-modes .radio-card:has(input:checked) { background: #fff8f5; }
+.digit-dropdown-select__value.is-placeholder { color: #5e5e5e; }
+.nf-control:has(> .nf-meta .field__error:not([hidden])) .digit-dropdown-select { border-color: var(--error); }
 /* Create New Role: fields stack label-over-input; access cards are checkboxes (multi-select) */
 .modal.role-choice { width: min(640px, calc(100vw - 32px)); }
 /* DIGIT text field: label on top, input, then the error */

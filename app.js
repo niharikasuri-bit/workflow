@@ -147,7 +147,7 @@
     select('state', state.id, { focusName: true });
     ensureVisible(state);
     // Dragging is the main way to move a state; the arrows under it are the alternative.
-    toast(`${TYPES[type].name} added. Drag it to place it, or use the arrows below it.`);
+    toast(`${TYPES[type].name} added. Drag the state to place it, or use the arrows below the state.`);
   }
 
   function nextSlot(type) {
@@ -208,7 +208,7 @@
   const deleteDialog = $('#deleteDialog');
   let pendingDelete = null;
 
-  function confirmDelete(name, onConfirm, extra = '', { title, question, cta = 'Delete', kind = '' } = {}) {
+  function confirmDelete(name, onConfirm, extra = '', { title, question, cta = 'Delete', kind = '', undoNote = true } = {}) {
     const what = kind ? `${kind.toLowerCase()} ` : '';
     $('#delTitle').textContent = title || `Proceed to delete ${what}"${name}"?`;
     $('#delDesc').replaceChildren(
@@ -216,13 +216,28 @@
         ? [question]
         : [`Are you sure you want to delete ${what}`, el('strong', {}, `"${name}"`), '?']),
       // extra may be a string or an array of strings/nodes (for bold parts)
-      ' ', ...(extra ? [].concat(extra, ' ') : []), 'This action cannot be undone.'
+      ' ', ...(extra ? [].concat(extra, ' ') : []), undoNote ? 'This action cannot be undone.' : ''
     );
     $('#delConfirm').textContent = cta;
     pendingDelete = onConfirm;
     deleteDialog.showModal();
     $('#delCancel').focus(); // the safe choice is focused first
   }
+  /* Turning off a switch that already has something added (notifications, documents,
+     a payment, a checklist) asks first. Nothing is deleted, so there is no undo note. */
+  function confirmDisable(noun, where, consequence, onConfirm) {
+    confirmDelete('', onConfirm, consequence, {
+      title: `Proceed to disable ${noun} for this ${where}?`,
+      question: `Are you sure you want to disable ${noun} for this ${where}?`,
+      cta: 'Proceed',
+      undoNote: false,
+    });
+  }
+  const DISABLE_NOTES = {
+    notify: 'This means no notifications will be sent out for this state.',
+    docs: 'This means no documents will be generated for this state.',
+    payment: 'This means no payment will be collected at this state.',
+  };
   $('#delConfirm').addEventListener('click', () => {
     const run = pendingDelete;
     pendingDelete = null;
@@ -422,12 +437,12 @@
     text('#addNewLabel', `Create new ${n}`);
     text('#addNewHint', `Create a new ${n} for this state.`);
     text('#addCopyLabel', `Duplicate existing ${n}`);
-    text('#addCopyHint', `Copy a ${n} and edit it.`);
+    text('#addCopyHint', `Copy a ${n} and edit the copy.`);
     text('#addTypeTitle', wiz.typeTitle);
     text('#addTypeDesc', wiz.typeDesc);
     text('#addTypeLegend', `${noun} type`);
     text('#addPickTitle', `Select ${noun}`);
-    text('#addPickDesc', `Select the ${n} to duplicate. You can edit it in the next step.`);
+    text('#addPickDesc', `Select the ${n} to duplicate. You can edit the copy in the next step.`);
     text('#nfBodyLabel', wiz.bodyLabel);
     nfBody.placeholder = `Enter ${wiz.bodyLabel.toLowerCase()}`;
     $('#nfRename').setAttribute('aria-label', `Rename ${n}`);
@@ -506,26 +521,169 @@
   addDialog.addEventListener('click', (e) => { if (e.target === addDialog) addDialog.close(); });
   addDialog.addEventListener('close', () => { addCtx = null; });
 
-  /* Payment: "Next step after payment" is asked when payment is turned on.
-     PROCESS = continue to the next state, TERMINATE = end the process flow. */
+  /* Payment popup. Turning payment on asks "Next step after payment"
+     (PROCESS = continue to the next state, TERMINATE = end the process flow),
+     then the payment details. Adding or editing a payment opens the details only.
+     Details: fee type, a dropdown (a calculated fee needs the calculator API's host and method)
+     and payment modes (online needs a payment integration). */
   const payDialog = $('#payDialog');
-  let payPending = null;
-  function askAfterPayment(current, onConfirm) {
-    payDialog.querySelector(`input[name="payAfter"][value="${current || 'PROCESS'}"]`).checked = true;
-    payPending = onConfirm;
-    payDialog.showModal();
-    payDialog.querySelector('input[name="payAfter"]:checked').focus();
+  const payConfirm = $('#payConfirm');
+  const payBack = $('#payBack');
+  const payHost = $('#payHost');
+  // Amount fields: the fee for a fixed amount, the allowed range for an amount entered by the user.
+  const payAmounts = { amount: $('#payAmount'), min: $('#payMin'), max: $('#payMax') };
+  const PAY_METHODS = [['GET', 'GET'], ['POST', 'POST']];
+  const PAY_INTEGRATIONS = [['PAYGOV', 'PayGov'], ['RAZORPAY', 'Razorpay'], ['PAYTM', 'Paytm']];
+  let payCtx = null; // { steps, at, fee, method, integration, onSave }
+  const PAY_FEES = [['FIXED', 'Fixed amount'], ['CALCULATED', 'Calculated amount'], ['USER', 'Range amount']];
+  $('#payFeeLabelRow').append(infoTip('fee', 'The fee is the amount people pay at this state.').btn);
+  $('#payModeLabelRow').append(infoTip('payment mode', 'The payment mode is how people pay the fee at this state.').btn);
+
+  const payChecked = (name) => payDialog.querySelector(`input[name="${name}"]:checked`)?.value;
+  const payModes = () => [...payDialog.querySelectorAll('input[name="payMode"]:checked')].map((c) => c.value);
+
+  function payError(id, msg) {
+    const err = $(`#${id}`);
+    err.textContent = msg;
+    err.hidden = !msg;
   }
-  $('#payConfirm').addEventListener('click', () => {
-    const run = payPending;
-    payPending = null;
-    const value = payDialog.querySelector('input[name="payAfter"]:checked').value;
+
+  // The two dropdowns show a placeholder until something is picked.
+  function renderPayDropdowns() {
+    const dd = (key, options, label, labelId, errId) => {
+      const wrap = digitDropdown({
+        options,
+        value: payCtx[key],
+        label,
+        placeholder: `Select ${label.toLowerCase()}`,
+        onChange: (v) => {
+          payCtx[key] = v;
+          if (errId) payError(errId, '');
+          renderPayDropdowns();
+          syncPayFields();
+          $(`#${labelId}`).closest('.nf-row').querySelector('.digit-dropdown-select').focus();
+        },
+      });
+      const btn = wrap.querySelector('.digit-dropdown-select');
+      btn.removeAttribute('aria-label');
+      btn.setAttribute('aria-labelledby', labelId);
+      if (errId) btn.setAttribute('aria-describedby', errId);
+      return wrap;
+    };
+    $('#payFeeSlot').replaceChildren(dd('fee', PAY_FEES, 'Fee', 'payFeeLabel', 'payFeeErr'));
+    $('#payMethodSlot').replaceChildren(dd('method', PAY_METHODS, 'Method type', 'payMethodLabel', 'payMethodErr'));
+    $('#payIntegrationSlot').replaceChildren(dd('integration', PAY_INTEGRATIONS, 'Payment integration', 'payIntegrationLabel', 'payIntegrationErr'));
+  }
+
+  // Each fee type shows its own fields; the integration shows when online is ticked.
+  function syncPayFields() {
+    $('#payFixed').hidden = payCtx.fee !== 'FIXED';
+    $('#payRange').hidden = payCtx.fee !== 'USER';
+    $('#payCalc').hidden = payCtx.fee !== 'CALCULATED';
+    $('#payIntegration').hidden = !payModes().includes('ONLINE');
+  }
+
+  function showPayStep() {
+    const { steps, at } = payCtx;
+    const step = steps[at];
+    payDialog.querySelectorAll('[data-pay-step]').forEach((sec) => { sec.hidden = sec.dataset.payStep !== step; });
+    $('#payWizard').hidden = steps.length < 2;
+    $('#payBars').replaceChildren(...steps.map((_, i) => el('span', { class: `wizard__bar${i <= at ? ' is-on' : ''}` })));
+    $('#payStepText').textContent = `Step ${at + 1} of ${steps.length}`;
+    payDialog.setAttribute('aria-labelledby', step === 'after' ? 'payTitle' : 'payDetailsTitle');
+    payDialog.setAttribute('aria-describedby', step === 'after' ? 'payDesc' : 'payDetailsDesc');
+    payBack.textContent = at ? 'Back' : 'Cancel';
+    payConfirm.textContent = at === steps.length - 1 ? 'Save' : 'Next';
+    (step === 'after' ? payDialog.querySelector('input[name="payAfter"]:checked') || payDialog.querySelector('input[name="payAfter"]') : $('#payFeeSlot .digit-dropdown-select')).focus();
+  }
+
+  /** value: { after, fee, amount, min, max, host, method, modes, integration }; steps: ['after', 'details'] or ['details']. */
+  function openPayDialog({ steps, value = {}, onSave }) {
+    // Nothing is picked for a new payment; editing shows what was saved.
+    payCtx = { steps, at: 0, fee: value.fee || '', method: value.method || '', integration: value.integration || '', onSave };
+    payDialog.querySelectorAll('input[name="payAfter"]').forEach((r) => { r.checked = r.value === value.after; });
+    const modes = value.modes || [];
+    payDialog.querySelectorAll('input[name="payMode"]').forEach((c) => { c.checked = modes.includes(c.value); });
+    payHost.value = value.host || '';
+    clError(payHost, '');
+    Object.entries(payAmounts).forEach(([k, input]) => { input.value = value[k] ?? ''; clError(input, ''); });
+    ['payAfterErr', 'payFeeErr', 'payMethodErr', 'payIntegrationErr', 'payModeErr'].forEach((id) => payError(id, ''));
+    renderPayDropdowns();
+    syncPayFields();
+    payDialog.showModal();
+    showPayStep();
+  }
+
+  payDialog.querySelectorAll('input[name="payAfter"]').forEach((r) => r.addEventListener('change', () => payError('payAfterErr', '')));
+  payDialog.querySelectorAll('input[name="payMode"]').forEach((i) =>
+    i.addEventListener('change', () => {
+      if (payModes().length) payError('payModeErr', '');
+      syncPayFields();
+    })
+  );
+  payHost.addEventListener('input', () => payHost.value.trim() && clError(payHost, ''));
+  Object.values(payAmounts).forEach((input) => input.addEventListener('input', () => input.value !== '' && clError(input, '')));
+  $('#payGuide').addEventListener('click', () => toast('The integration guide is not linked yet.'));
+
+  payConfirm.addEventListener('click', () => {
+    const ctx = payCtx;
+    if (!ctx) return;
+    if (ctx.steps[ctx.at] === 'after' && !payChecked('payAfter')) {
+      payError('payAfterErr', 'Select what happens when the payment is successful.');
+      return payDialog.querySelector('input[name="payAfter"]').focus();
+    }
+    if (ctx.at < ctx.steps.length - 1) {
+      ctx.at++;
+      return showPayStep();
+    }
+    // Turning payment back on for a state that still has its payment only asks the next step.
+    if (!ctx.steps.includes('details')) {
+      payDialog.close();
+      return ctx.onSave({ after: payChecked('payAfter') });
+    }
+    const fee = ctx.fee;
+    const modes = payModes();
+    const calc = fee === 'CALCULATED';
+    const online = modes.includes('ONLINE');
+    // Amounts: a number of 0 or more; the maximum can't be below the minimum.
+    const num = (input) => (input.value === '' || Number(input.value) < 0 ? null : Number(input.value));
+    const [amount, min, max] = [payAmounts.amount, payAmounts.min, payAmounts.max].map(num);
+    payError('payFeeErr', fee ? '' : 'Select the fee.');
+    clError(payAmounts.amount, fee === 'FIXED' && amount === null ? 'Enter the fee amount.' : '');
+    clError(payAmounts.min, fee === 'USER' && min === null ? 'Enter the minimum amount.' : '');
+    clError(payAmounts.max, fee !== 'USER' ? '' : max === null ? 'Enter the maximum amount.' : min !== null && max < min ? 'The maximum amount can’t be less than the minimum amount.' : '');
+    clError(payHost, calc && !payHost.value.trim() ? 'Enter the host endpoint.' : '');
+    payError('payMethodErr', calc && !ctx.method ? 'Select the method type.' : '');
+    payError('payIntegrationErr', online && !ctx.integration ? 'Select the payment integration.' : '');
+    payError('payModeErr', modes.length ? '' : 'Select at least one payment mode.');
+    const firstBad = [
+      !fee && $('#payFeeSlot .digit-dropdown-select'),
+      ...Object.values(payAmounts).filter((input) => input.getAttribute('aria-invalid')),
+      calc && !payHost.value.trim() && payHost,
+      calc && !ctx.method && $('#payMethodSlot .digit-dropdown-select'),
+      !modes.length && payDialog.querySelector('input[name="payMode"]'),
+      online && !ctx.integration && $('#payIntegrationSlot .digit-dropdown-select'),
+    ].find(Boolean);
+    if (firstBad) return firstBad.focus();
     payDialog.close();
-    run?.(value);
+    ctx.onSave({
+      after: payChecked('payAfter'),
+      fee,
+      ...(fee === 'FIXED' && { amount }),
+      ...(fee === 'USER' && { min, max }),
+      ...(calc && { host: payHost.value.trim(), method: ctx.method }),
+      modes,
+      ...(online && { integration: ctx.integration }),
+    });
+  });
+  payBack.addEventListener('click', () => {
+    if (!payCtx || !payCtx.at) return payDialog.close();
+    payCtx.at--;
+    showPayStep();
   });
   payDialog.querySelectorAll('[data-close]').forEach((b) => b.addEventListener('click', () => payDialog.close()));
   payDialog.addEventListener('click', (e) => { if (e.target === payDialog) payDialog.close(); });
-  payDialog.addEventListener('close', () => { payPending = null; });
+  payDialog.addEventListener('close', () => { payCtx = null; });
 
   /* Create New Role: name and access. Access is multi-select
      (Viewer, Editor, Creator); at least one is needed. */
@@ -584,11 +742,12 @@
      its class names and look): 40px field with the ArrowDropDown icon, an options card
      with a shadow, and the orange-tint highlight on hover / arrow keys. Keyboard:
      Enter / Space / Down open, arrows move, Enter picks, Escape or Tab close. */
-  function digitDropdown({ options, value, label, onChange, className = '' }) {
+  function digitDropdown({ options, value, label, onChange, className = '', placeholder }) {
     const id = uid('dd');
     let open = false;
     let active = Math.max(0, options.findIndex(([v]) => v === value));
-    const current = options.find(([v]) => v === value) || options[0];
+    // With a placeholder, nothing is shown as picked until a value is chosen.
+    const current = options.find(([v]) => v === value) || (placeholder ? null : options[0]);
     const arrow = svgEl('svg', { viewBox: '0 0 24 24', width: 24, height: 24, 'aria-hidden': 'true' });
     arrow.append(svgEl('path', { d: 'M7 10l5 5 5-5z', fill: '#505A5F' }));
     const list = el('ul', { class: 'digit-dropdown-options-card', role: 'listbox', id: `${id}-list`, 'aria-label': label, hidden: true });
@@ -603,7 +762,7 @@
         'aria-controls': `${id}-list`,
         'aria-label': label,
       },
-      el('span', { class: 'digit-dropdown-select__value' }, current[1]),
+      el('span', { class: `digit-dropdown-select__value${current ? '' : ' is-placeholder'}` }, current ? current[1] : placeholder),
       arrow
     );
     const highlight = (i) => {
@@ -996,9 +1155,19 @@
   function deleteState(id) {
     const s = stateById(id);
     if (!s) return;
-    const linked = wf.actions.filter((a) => a.from === id || a.to === id).length;
-    confirmDelete(s.name, () => removeState(id), linked ? `Its ${plural(linked, 'action')} will be deleted too.` : '', { kind: 'State' });
+    const linked = wf.actions.filter((a) => a.from === id || a.to === id);
+    const parts = [
+      linked.length && 'actions',
+      s.docs?.enabled && s.docs.items.length && 'documents',
+      s.notify?.enabled && s.notify.items.length && 'notifications',
+      linked.some(hasChecklist) && 'checklists',
+    ].filter(Boolean);
+    confirmDelete(s.name, () => removeState(id), parts.length ? `Any ${listText(parts)} associated with this state will be deleted too.` : '', { kind: 'State' });
   }
+
+  // What else a delete takes with it, listed (without names) in the delete popup.
+  const hasChecklist = (a) => !!(a.checklist?.enabled && a.checklist.item);
+  const listText = (parts) => (parts.length < 2 ? parts[0] : `${parts.slice(0, -1).join(', ')} and ${parts.at(-1)}`);
 
   function removeState(id) {
     const s = stateById(id);
@@ -1014,7 +1183,7 @@
   function deleteAction(id) {
     const a = actionById(id);
     if (!a) return;
-    confirmDelete(a.name, () => removeAction(id), '', { kind: 'Action' });
+    confirmDelete(a.name, () => removeAction(id), hasChecklist(a) ? 'Any checklist associated with this action will be deleted too.' : '', { kind: 'Action' });
   }
 
   function removeAction(id) {
@@ -1192,7 +1361,7 @@
         role: 'button',
         tabIndex: 0,
         'aria-pressed': String(isSel),
-        'aria-label': `${TYPES[s.type].label} ${s.name || 'Untitled state'}. ${outs} out, ${ins} in.${nodeIssues.length ? ` Required: ${nodeIssues.map((i) => i.todo || i.title).join(' ')}` : ''} Arrow keys move it, C connects it.`,
+        'aria-label': `${TYPES[s.type].label} ${s.name || 'Untitled state'}. ${outs} out, ${ins} in.${nodeIssues.length ? ` Required: ${nodeIssues.map((i) => i.todo || i.title).join(' ')}` : ''} Arrow keys move the state, C connects the state to another state.`,
         style: `left:${s.x}px;top:${s.y}px`,
       },
       el('span', { class: 'node__icon', 'aria-hidden': 'true' }, stateIcon(s.type)),
@@ -1348,7 +1517,7 @@
           state: s.id,
           title: `"${s.name}" can't be reached`,
           todo: 'Connect an earlier state to this one.',
-          detail: `No path of actions leads here from "${start.name}", so applications will never arrive. Add an action from an earlier state that moves to it.`,
+          detail: `No path of actions leads here from "${start.name}", so applications will never arrive. Add an action from an earlier state that moves to this state.`,
           fix: { label: 'Show State', run: () => goToState(s.id) },
         });
       }
@@ -1357,7 +1526,7 @@
           state: s.id,
           title: `"${s.name}" is a dead end`,
           todo: 'Connect this state to the next state.',
-          detail: 'Applications that reach this state get stuck. Connect it to the next state, or make it an end state.',
+          detail: 'Applications that reach this state get stuck. Connect this state to the next state, or make this state an end state.',
           fix: { label: 'Connect', run: () => { goToState(s.id); startConnect(s.id); } },
         });
       }
@@ -1571,12 +1740,18 @@
     clearTimeout(tipHideTimer);
     tipOwner = btn;
     tooltip.textContent = btn.dataset.tip;
+    // A modal sits in the top layer, so a tip for a button inside it has to live in it too.
+    const dialog = btn.closest('dialog[open]');
+    (dialog || document.body).append(tooltip);
     tooltip.hidden = false;
+    // Inside a popup the tip stays within the popup's edges; elsewhere within the window.
+    const box = dialog ? dialog.getBoundingClientRect() : { left: 0, right: window.innerWidth, bottom: window.innerHeight };
     const r = btn.getBoundingClientRect();
     const w = tooltip.offsetWidth;
     const h = tooltip.offsetHeight;
-    const left = clamp(r.left + r.width / 2 - w / 2, 8, window.innerWidth - w - 8);
-    const below = r.bottom + 8 + h < window.innerHeight;
+    const pad = dialog ? 24 : 8; // keep clear of the popup's rounded edge
+    const left = clamp(r.left + r.width / 2 - w / 2, box.left + pad, box.right - w - pad);
+    const below = r.bottom + 8 + h < box.bottom;
     tooltip.style.left = `${left}px`;
     tooltip.style.top = `${below ? r.bottom + 8 : r.top - h - 8}px`;
     tooltip.style.setProperty('--arrow-x', `${r.left + r.width / 2 - left}px`);
@@ -1671,7 +1846,7 @@
   }
 
   const STATE_DESCRIPTION =
-    'A state is a stage in the process flow. Set up its details and the rules that apply at this stage.';
+    'A state is a stage in the process flow. Set up the state’s details and the rules that apply at this stage.';
 
   function statePanel(s) {
     const start = startState();
@@ -1710,7 +1885,7 @@
               s.type !== 'end'
                 ? section(
                     'SLA',
-                    { info: 'Service level agreement (SLA) is the maximum time work can stay in this state before it is marked overdue.' },
+                    { info: 'Service level agreement (SLA) is the maximum time work can stay in this state before the work is marked overdue.' },
                     stepper('SLA Time Hours', s.slaHours, (v) => { s.slaHours = v; commit(); })
                   )
                 : null,
@@ -1795,8 +1970,21 @@
             renderInspector();
             $(`[aria-labelledby="${titleId}"]`, inspector)?.focus();
           };
+          // Turning payment on asks the next step and the payment details, then adds the payment.
           if (key === 'payment' && !data.enabled) {
-            return askAfterPayment(data.after, (after) => { data.enabled = true; data.after = after; apply(); });
+            return openPayDialog({
+              steps: data.items.length ? ['after'] : ['after', 'details'],
+              value: { after: data.after },
+              onSave: ({ after, ...details }) => {
+                data.enabled = true;
+                data.after = after;
+                if (!data.items.length) data.items.push({ id: uid(key), name: uniqueName(), ...details });
+                apply();
+              },
+            });
+          }
+          if (data.enabled && data.items.length) {
+            return confirmDisable(cfg.noun.toLowerCase(), 'state', DISABLE_NOTES[key], () => { data.enabled = false; apply(); });
           }
           data.enabled = !data.enabled;
           apply();
@@ -1842,8 +2030,22 @@
         { class: 'logic-item', 'data-item': item.id },
         el('span', { class: 'logic-item__name' }, item.name),
         el('button', {
-          type: 'button', class: 'logic-item__btn', 'aria-label': cfg.wizard ? `Edit ${item.name}` : `Rename ${item.name}`, title: 'Edit',
+          type: 'button', class: 'logic-item__btn', 'aria-label': cfg.wizard || key === 'payment' ? `Edit ${item.name}` : `Rename ${item.name}`, title: 'Edit',
           onClick: () => {
+            if (key === 'payment') {
+              return openPayDialog({
+                steps: ['details'],
+                value: item,
+                onSave: ({ after, ...details }) => {
+                  ['fee', 'amount', 'min', 'max', 'host', 'method', 'modes', 'integration'].forEach((k) => delete item[k]);
+                  Object.assign(item, details);
+                  commit();
+                  renderInspector();
+                  $(`[data-item="${item.id}"] .logic-item__btn`, inspector)?.focus();
+                  toast(`${item.name} updated`);
+                },
+              });
+            }
             if (!cfg.wizard) {
               renaming = { stateId: s.id, key, id: item.id };
               return renderInspector({ focusRename: true });
@@ -1925,8 +2127,9 @@
       });
     };
     const add = () => {
-      // Notifications open the add wizard; documents and payments are added straight away.
+      // Notifications open the add wizard, payments the payment popup, documents the document popup.
       if (key === 'docs') return addDocument();
+      if (key === 'payment') return openPayDialog({ steps: ['details'], onSave: ({ after, ...details }) => push({ name: uniqueName(), ...details }) });
       if (!cfg.wizard) return push({ name: uniqueName() });
       const sources = wf.states.flatMap((st) =>
         (st[key]?.items || []).map((item) => ({
@@ -2037,7 +2240,16 @@
     const out = {};
     const on = (key) => s[key]?.enabled && s[key].items.length;
     if (on('docs')) out.generatedDocuments = s.docs.items.map((i) => ({ documentType: toCode(i.name) }));
-    if (on('payment')) out.payments = s.payment.items.map((i) => ({ name: i.name }));
+    if (on('payment'))
+      out.payments = s.payment.items.map((i) => ({
+        name: i.name,
+        feeType: i.fee || 'FIXED',
+        ...(i.fee === 'FIXED' && i.amount != null && { amount: i.amount }),
+        ...(i.fee === 'USER' && i.min != null && { minAmount: i.min, maxAmount: i.max }),
+        ...(i.fee === 'CALCULATED' && { calculator: { host: i.host, method: i.method } }),
+        paymentModes: i.modes || ['ONLINE', 'OFFLINE'],
+        ...(i.integration && { paymentIntegration: i.integration }),
+      }));
     if (s.payment?.enabled) out.afterPayment = s.payment.after || 'PROCESS';
     if (on('notify')) out.notifications = s.notify.items.map((i) => ({ name: i.name }));
     const esc = s.escalation;
@@ -2125,7 +2337,7 @@
   const ACTION_SETTINGS = [
     { key: 'comments', title: 'Add comments', desc: 'Users can add remarks or notes while taking this action.' },
     { key: 'delegate', title: 'Delegate step', desc: 'This step can be delegated to another role or user.' },
-    { key: 'editApplication', title: 'Edit application', desc: 'Users with access to this action can edit the application after taking it.' },
+    { key: 'editApplication', title: 'Edit application', desc: 'Users with access to this action can edit the application after taking this action.' },
   ];
 
   function actionSettingsCard(a) {
@@ -2203,11 +2415,15 @@
         'aria-checked': String(data.enabled),
         'aria-labelledby': 'checklistTitle',
         onClick: () => {
-          data.enabled = !data.enabled;
-          renamingChecklist = false;
-          commit();
-          renderInspector();
-          $('[aria-labelledby="checklistTitle"]', inspector)?.focus();
+          const flip = () => {
+            data.enabled = !data.enabled;
+            renamingChecklist = false;
+            commit();
+            renderInspector();
+            $('[aria-labelledby="checklistTitle"]', inspector)?.focus();
+          };
+          if (data.enabled && data.item) return confirmDisable('checklist', 'action', 'This means no checklist will be shown for this action.', flip);
+          flip();
         },
       },
       el('span', { class: 'switch__knob', 'aria-hidden': 'true' })
@@ -2317,7 +2533,7 @@
 
 
     return [
-      panelHead('Action Properties', 'An action moves the process flow from one state to the next. Set up its details, who can take it, and what is required when it is taken.', () => select(null)),
+      panelHead('Action Properties', 'An action moves the process flow from one state to the next. Set up the action’s details, who can take the action, and what is required when the action is taken.', () => select(null)),
       el(
         'div',
         { class: 'panel-body' },
@@ -2325,7 +2541,7 @@
         section(null, {}, field('Action Name', nameEl, null, { required: true })),
         section(
           'Roles',
-          { info: 'Roles are the permissions given to users that allow them to take this action. Only users with these roles will see it.' },
+          { info: 'Roles are the permissions given to users that allow them to take this action. Only users with these roles will see this action.' },
           rolesCard(a)
         ),
         checklistSection(a),

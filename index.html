@@ -160,7 +160,7 @@
     <div class="modal__head">
       <div>
         <h2 id="configTitle" class="modal__title--blue">Process flow configuration</h2>
-        <p class="muted" id="configDesc">Copy or download this code, then import it into Studio to create a new service.</p>
+        <p class="muted" id="configDesc">Copy or download this code, then import the code into Studio to create a new service.</p>
       </div>
       <button type="button" class="icon-btn" data-close aria-label="Close">
         <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
@@ -228,13 +228,13 @@
       <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
     </button>
     <div class="confirm__icon" aria-hidden="true">
-      <svg viewBox="0 0 48 44" width="44" height="40"><path d="M24 2L46 42H2z" fill="#b91900"/><rect x="21.5" y="15" width="5" height="15" rx="1.5" fill="#fff"/><circle cx="24" cy="35.5" r="2.8" fill="#fff"/></svg>
+      <svg viewBox="0 0 48 44" width="48" height="48"><path d="M24 2L46 42H2z" fill="#b91900"/><rect x="21.5" y="15" width="5" height="15" rx="1.5" fill="#fff"/><circle cx="24" cy="35.5" r="2.8" fill="#fff"/></svg>
     </div>
     <h2 class="confirm__title" id="delTitle"></h2>
     <p class="confirm__desc" id="delDesc"></p>
     <div class="confirm__actions">
-      <button type="button" class="btn btn--secondary" data-close id="delCancel">Cancel</button>
-      <button type="button" class="btn btn--primary" id="delConfirm">Delete</button>
+      <button type="button" class="btn btn--secondary btn--l" data-close id="delCancel">Cancel</button>
+      <button type="button" class="btn btn--primary btn--l" id="delConfirm">Delete</button>
     </div>
   </dialog>
 
@@ -352,29 +352,138 @@
     </div>
   </dialog>
 
-  <!-- Payment: asked when payment is turned on, before it is enabled -->
+  <!-- Payment: when payment is turned on, "Next step after payment" then the payment details.
+       Adding or editing a payment opens the details step only. -->
   <dialog class="modal add-choice pay-choice" id="payDialog" aria-labelledby="payTitle" aria-describedby="payDesc">
     <div class="add-choice__body">
       <button type="button" class="icon-btn add-choice__close" data-close aria-label="Close">
         <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
       </button>
-      <h2 class="add-choice__title" id="payTitle">Next step after payment</h2>
-      <p class="add-choice__desc" id="payDesc">Select what happens when the payment is successful.</p>
-      <fieldset class="add-choice__options">
-        <legend class="sr-only">Next step after payment</legend>
-        <label class="radio-card">
-          <input type="radio" name="payAfter" value="PROCESS" checked>
-          <span><span class="radio-card__label">Continue to the next state</span><span class="radio-card__text">The process flow continues to the next state.</span></span>
-        </label>
-        <label class="radio-card">
-          <input type="radio" name="payAfter" value="TERMINATE">
-          <span><span class="radio-card__label">End the process flow</span><span class="radio-card__text">The process flow ends. There are no more steps.</span></span>
-        </label>
-      </fieldset>
+      <div class="wizard" id="payWizard">
+        <span class="sr-only" id="payStepText"></span>
+        <span class="wizard__bars" id="payBars" aria-hidden="true"></span>
+      </div>
+
+      <section data-pay-step="after">
+        <h2 class="add-choice__title" id="payTitle">Select Next Step After Payment</h2>
+        <p class="add-choice__desc" id="payDesc">Select what happens when the payment is successful.</p>
+        <fieldset class="add-choice__options">
+          <legend class="sr-only">Next step after payment</legend>
+          <label class="radio-card">
+            <input type="radio" name="payAfter" value="PROCESS">
+            <span><span class="radio-card__label">Continue to the next state</span><span class="radio-card__text">The process flow continues to the next state.</span></span>
+          </label>
+          <label class="radio-card">
+            <input type="radio" name="payAfter" value="TERMINATE">
+            <span><span class="radio-card__label">End the process flow</span><span class="radio-card__text">The process flow ends. There are no more steps.</span></span>
+          </label>
+        </fieldset>
+        <p class="field__error pay-after-err" id="payAfterErr" hidden></p>
+      </section>
+
+      <section data-pay-step="details" hidden>
+        <h2 class="add-choice__title" id="payDetailsTitle">Set Up Payment</h2>
+        <p class="add-choice__desc" id="payDetailsDesc">Choose how the fee amount is worked out and how people can pay the fee at this state.</p>
+        <div class="nf-fields">
+          <div class="nf-box">
+            <div class="nf-row">
+              <div class="digit-label-row" id="payFeeLabelRow"><span class="digit-label" id="payFeeLabel">Fee <span class="req">*</span></span></div>
+              <div class="nf-control">
+                <div id="payFeeSlot"></div>
+                <div class="nf-meta"><span class="field__error" id="payFeeErr" hidden></span></div>
+              </div>
+            </div>
+            <div class="pay-calc" id="payFixed" hidden>
+              <div class="nf-row">
+                <div class="digit-label-row"><label class="digit-label" for="payAmount">Fee amount <span class="req">*</span></label></div>
+                <div class="nf-control">
+                  <div class="digit-text-input-field">
+                    <input class="digit-employeeCard-input" id="payAmount" type="number" inputmode="decimal" min="0" step="0.01" placeholder="Enter fee amount" autocomplete="off" aria-describedby="payAmountErr">
+                  </div>
+                  <div class="nf-meta"><span class="field__error" id="payAmountErr" hidden></span></div>
+                </div>
+              </div>
+            </div>
+            <div class="pay-calc" id="payRange" hidden>
+              <div class="nf-row">
+                <div class="digit-label-row"><label class="digit-label" for="payMin">Minimum amount <span class="req">*</span></label></div>
+                <div class="nf-control">
+                  <div class="digit-text-input-field">
+                    <input class="digit-employeeCard-input" id="payMin" type="number" inputmode="decimal" min="0" step="0.01" placeholder="Enter minimum amount" autocomplete="off" aria-describedby="payMinErr">
+                  </div>
+                  <div class="nf-meta"><span class="field__error" id="payMinErr" hidden></span></div>
+                </div>
+              </div>
+              <div class="nf-row">
+                <div class="digit-label-row"><label class="digit-label" for="payMax">Maximum amount <span class="req">*</span></label></div>
+                <div class="nf-control">
+                  <div class="digit-text-input-field">
+                    <input class="digit-employeeCard-input" id="payMax" type="number" inputmode="decimal" min="0" step="0.01" placeholder="Enter maximum amount" autocomplete="off" aria-describedby="payMaxErr">
+                  </div>
+                  <div class="nf-meta"><span class="field__error" id="payMaxErr" hidden></span></div>
+                </div>
+              </div>
+            </div>
+            <div class="pay-calc" id="payCalc" hidden>
+              <div class="nf-row">
+                <div class="digit-label-row"><label class="digit-label" for="payHost">Host endpoint <span class="req">*</span></label></div>
+                <div class="nf-control">
+                  <div class="digit-text-input-field">
+                    <input class="digit-employeeCard-input" id="payHost" type="text" placeholder="Enter host endpoint" autocomplete="off" aria-describedby="payHostErr">
+                  </div>
+                  <div class="nf-meta"><span class="field__error" id="payHostErr" hidden></span></div>
+                </div>
+              </div>
+              <div class="nf-row">
+                <div class="digit-label-row"><span class="digit-label" id="payMethodLabel">Method type <span class="req">*</span></span></div>
+                <div class="nf-control">
+                  <div id="payMethodSlot"></div>
+                  <div class="nf-meta"><span class="field__error" id="payMethodErr" hidden></span></div>
+                </div>
+              </div>
+              <div class="nf-info" role="note" aria-labelledby="payCalcInfoTitle">
+                <p class="nf-info__title" id="payCalcInfoTitle">
+                  <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><circle cx="12" cy="12" r="10" fill="currentColor"/><path d="M12 11v6M12 7.5v.5" stroke="#fff" stroke-width="2.2" stroke-linecap="round"/></svg>
+                  Info
+                </p>
+                <p class="nf-info__text">This fee type requires a custom calculator API that follows the DIGIT fee contract.</p>
+                <button type="button" class="btn btn--info btn--m nf-info__btn" id="payGuide">View Integration Guide</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="nf-box">
+            <div class="nf-row">
+              <div class="digit-label-row" id="payModeLabelRow"><span class="digit-label" id="payModeLabel">Payment mode <span class="req">*</span></span></div>
+              <div class="nf-control">
+                <div class="pay-modes" role="group" aria-labelledby="payModeLabel" aria-describedby="payModeErr">
+                  <label class="radio-card radio-card--check">
+                    <input type="checkbox" name="payMode" value="ONLINE">
+                    <span><span class="radio-card__label">Online payment</span><span class="radio-card__text">Collect payment through an integrated payment gateway.</span></span>
+                  </label>
+                  <label class="radio-card radio-card--check">
+                    <input type="checkbox" name="payMode" value="OFFLINE">
+                    <span><span class="radio-card__label">Offline payment</span><span class="radio-card__text">Record payment collected outside the gateway, such as cash or bank transfer.</span></span>
+                  </label>
+                </div>
+                <div class="nf-meta"><span class="field__error" id="payModeErr" hidden></span></div>
+              </div>
+            </div>
+            <!-- Its own field: shown while online payment is ticked -->
+            <div class="nf-row" id="payIntegration">
+              <div class="digit-label-row"><span class="digit-label" id="payIntegrationLabel">Payment integration <span class="req">*</span></span></div>
+              <div class="nf-control">
+                <div id="payIntegrationSlot"></div>
+                <div class="nf-meta"><span class="field__error" id="payIntegrationErr" hidden></span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
     </div>
     <div class="modal__foot">
-      <button type="button" class="btn btn--secondary" data-close>Cancel</button>
-      <button type="button" class="btn btn--primary" id="payConfirm">Confirm</button>
+      <button type="button" class="btn btn--secondary" id="payBack">Cancel</button>
+      <button type="button" class="btn btn--primary" id="payConfirm">Next</button>
     </div>
   </dialog>
 
@@ -385,7 +494,7 @@
         <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
       </button>
       <h2 class="add-choice__title" id="roleTitle">Create New Role</h2>
-      <p class="add-choice__desc" id="roleDesc">Create a new role and choose what it can access.</p>
+      <p class="add-choice__desc" id="roleDesc">Create a new role and choose what the role can access.</p>
       <div class="nf-fields">
         <div class="digit-field">
           <label class="digit-field__label" for="roleName">Role Name <span class="req">*</span></label>
@@ -406,7 +515,7 @@
           </label>
           <label class="radio-card radio-card--check">
             <input type="checkbox" name="roleAccess" value="CREATOR">
-            <span><span class="radio-card__label">Creator</span><span class="radio-card__text">Can add new things to the service, and view and edit everything in it. Has full access.</span></span>
+            <span><span class="radio-card__label">Creator</span><span class="radio-card__text">Can add new things to the service, and view and edit everything in the service. Has full access.</span></span>
           </label>
           <span class="field__error" id="roleAccessErr" hidden></span>
         </fieldset>
@@ -440,14 +549,14 @@
           </label>
           <label class="radio-card">
             <input type="radio" name="clMode" value="copy">
-            <span><span class="radio-card__label">Duplicate existing checklist</span><span class="radio-card__text">Copy a checklist and edit it.</span></span>
+            <span><span class="radio-card__label">Duplicate existing checklist</span><span class="radio-card__text">Copy a checklist and edit the copy.</span></span>
           </label>
         </fieldset>
       </section>
 
       <section data-cl-step="pick" hidden>
         <h2 class="add-choice__title" id="clPickTitle">Select Checklist</h2>
-        <p class="add-choice__desc">Select the checklist to duplicate. You can edit it in the next step.</p>
+        <p class="add-choice__desc">Select the checklist to duplicate. You can edit the copy in the next step.</p>
         <div class="pick-list" id="clPickList" role="radiogroup" aria-labelledby="clPickTitle"></div>
       </section>
 
