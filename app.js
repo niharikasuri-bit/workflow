@@ -536,8 +536,6 @@
   const PAY_INTEGRATIONS = [['PAYGOV', 'PayGov'], ['RAZORPAY', 'Razorpay'], ['PAYTM', 'Paytm']];
   let payCtx = null; // { steps, at, fee, method, integration, onSave }
   const PAY_FEES = [['FIXED', 'Fixed amount'], ['CALCULATED', 'Calculated amount'], ['USER', 'Range amount']];
-  // One currency per payment: the fee amount, or both ends of the range.
-  const PAY_CURRENCIES = [['INR', 'INR (₹)'], ['USD', 'USD ($)'], ['EUR', 'EUR (€)'], ['GBP', 'GBP (£)'], ['KES', 'KES'], ['NGN', 'NGN (₦)'], ['MZN', 'MZN'], ['ETB', 'ETB']];
   $('#payFeeLabelRow').append(infoTip('fee', 'The fee is the amount people pay at this state.').btn);
   $('#payModeLabelRow').append(infoTip('payment mode', 'The payment mode is how people pay the fee at this state.').btn);
 
@@ -575,18 +573,6 @@
     $('#payFeeSlot').replaceChildren(dd('fee', PAY_FEES, 'Fee', 'payFeeLabel', 'payFeeErr'));
     $('#payMethodSlot').replaceChildren(dd('method', PAY_METHODS, 'Method type', 'payMethodLabel', 'payMethodErr'));
     $('#payIntegrationSlot').replaceChildren(dd('integration', PAY_INTEGRATIONS, 'Payment integration', 'payIntegrationLabel', 'payIntegrationErr'));
-    payDialog.querySelectorAll('.pay-currency').forEach((slot) =>
-      slot.replaceChildren(digitDropdown({
-        options: PAY_CURRENCIES,
-        value: payCtx.currency,
-        label: slot.dataset.label,
-        onChange: (v) => {
-          payCtx.currency = v;
-          renderPayDropdowns();
-          slot.querySelector('.digit-dropdown-select').focus();
-        },
-      }))
-    );
   }
 
   // Each fee type shows its own fields; the integration shows when online is ticked.
@@ -614,7 +600,7 @@
   /** value: { after, fee, amount, min, max, host, method, modes, integration }; steps: ['after', 'details'] or ['details']. */
   function openPayDialog({ steps, value = {}, onSave }) {
     // Nothing is picked for a new payment; editing shows what was saved.
-    payCtx = { steps, at: 0, fee: value.fee || '', currency: value.currency || 'INR', method: value.method || '', integration: value.integration || '', onSave };
+    payCtx = { steps, at: 0, fee: value.fee || '', method: value.method || '', integration: value.integration || '', onSave };
     payDialog.querySelectorAll('input[name="payAfter"]').forEach((r) => { r.checked = r.value === value.after; });
     const modes = value.modes || [];
     payDialog.querySelectorAll('input[name="payMode"]').forEach((c) => { c.checked = modes.includes(c.value); });
@@ -685,7 +671,6 @@
       fee,
       ...(fee === 'FIXED' && { amount }),
       ...(fee === 'USER' && { min, max }),
-      ...((fee === 'FIXED' || fee === 'USER') && { currency: ctx.currency }),
       ...(calc && { host: payHost.value.trim(), method: ctx.method }),
       modes,
       ...(online && { integration: ctx.integration }),
@@ -2053,7 +2038,7 @@
                 steps: ['details'],
                 value: item,
                 onSave: ({ after, ...details }) => {
-                  ['fee', 'amount', 'min', 'max', 'currency', 'host', 'method', 'modes', 'integration'].forEach((k) => delete item[k]);
+                  ['fee', 'amount', 'min', 'max', 'host', 'method', 'modes', 'integration'].forEach((k) => delete item[k]);
                   Object.assign(item, details);
                   commit();
                   renderInspector();
@@ -2262,7 +2247,6 @@
         feeType: i.fee || 'FIXED',
         ...(i.fee === 'FIXED' && i.amount != null && { amount: i.amount }),
         ...(i.fee === 'USER' && i.min != null && { minAmount: i.min, maxAmount: i.max }),
-        ...((i.fee || 'FIXED') !== 'CALCULATED' && { currency: i.currency || 'INR' }),
         ...(i.fee === 'CALCULATED' && { calculator: { host: i.host, method: i.method } }),
         paymentModes: i.modes || ['ONLINE', 'OFFLINE'],
         ...(i.integration && { paymentIntegration: i.integration }),
