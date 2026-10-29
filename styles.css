@@ -1212,11 +1212,15 @@ button { cursor: pointer; }
 .pay-calc input[type='number']::-webkit-inner-spin-button,
 .pay-calc input[type='number']::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
 .pay-calc[hidden], #payIntegration[hidden] { display: none; }
+/* Amount field: currency dropdown on the left, amount on the right */
+.pay-amount { display: grid; grid-template-columns: 136px minmax(0, 1fr); gap: 8px; }
 .pay-modes { display: grid; gap: 12px; }
 .pay-modes .radio-card { background: var(--surface); } /* each mode card is white; a ticked one keeps the warm tint */
 .pay-modes .radio-card:has(input:checked) { background: #fff8f5; }
 .digit-dropdown-select__value.is-placeholder { color: #5e5e5e; }
 .nf-control:has(> .nf-meta .field__error:not([hidden])) .digit-dropdown-select { border-color: var(--error); }
+/* An amount error marks the amount only, not its currency */
+.nf-control:has(> .nf-meta .field__error:not([hidden])) .pay-currency .digit-dropdown-select:not(.digit-dropdown-select-active) { border-color: #787878; }
 /* Create New Role: fields stack label-over-input; access cards are checkboxes (multi-select) */
 .modal.role-choice { width: min(640px, calc(100vw - 32px)); }
 /* DIGIT text field: label on top, input, then the error */

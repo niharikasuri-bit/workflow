@@ -216,7 +216,7 @@
         ? [question]
         : [`Are you sure you want to delete ${what}`, el('strong', {}, `"${name}"`), '?']),
       // extra may be a string or an array of strings/nodes (for bold parts)
-      ' ', ...(extra ? [].concat(extra, ' ') : []), undoNote ? 'This action cannot be undone.' : ''
+      ' ', ...(extra ? [].concat(extra) : []), ...(undoNote ? [el('br'), 'This action cannot be undone.'] : [])
     );
     $('#delConfirm').textContent = cta;
     pendingDelete = onConfirm;
@@ -536,6 +536,8 @@
   const PAY_INTEGRATIONS = [['PAYGOV', 'PayGov'], ['RAZORPAY', 'Razorpay'], ['PAYTM', 'Paytm']];
   let payCtx = null; // { steps, at, fee, method, integration, onSave }
   const PAY_FEES = [['FIXED', 'Fixed amount'], ['CALCULATED', 'Calculated amount'], ['USER', 'Range amount']];
+  // One currency per payment: the fee amount, or both ends of the range.
+  const PAY_CURRENCIES = [['INR', 'INR (₹)'], ['USD', 'USD ($)'], ['EUR', 'EUR (€)'], ['GBP', 'GBP (£)'], ['KES', 'KES'], ['NGN', 'NGN (₦)'], ['MZN', 'MZN'], ['ETB', 'ETB']];
   $('#payFeeLabelRow').append(infoTip('fee', 'The fee is the amount people pay at this state.').btn);
   $('#payModeLabelRow').append(infoTip('payment mode', 'The payment mode is how people pay the fee at this state.').btn);
 
@@ -573,6 +575,18 @@
     $('#payFeeSlot').replaceChildren(dd('fee', PAY_FEES, 'Fee', 'payFeeLabel', 'payFeeErr'));
     $('#payMethodSlot').replaceChildren(dd('method', PAY_METHODS, 'Method type', 'payMethodLabel', 'payMethodErr'));
     $('#payIntegrationSlot').replaceChildren(dd('integration', PAY_INTEGRATIONS, 'Payment integration', 'payIntegrationLabel', 'payIntegrationErr'));
+    payDialog.querySelectorAll('.pay-currency').forEach((slot) =>
+      slot.replaceChildren(digitDropdown({
+        options: PAY_CURRENCIES,
+        value: payCtx.currency,
+        label: slot.dataset.label,
+        onChange: (v) => {
+          payCtx.currency = v;
+          renderPayDropdowns();
+          slot.querySelector('.digit-dropdown-select').focus();
+        },
+      }))
+    );
   }
 
   // Each fee type shows its own fields; the integration shows when online is ticked.
@@ -600,7 +614,7 @@
   /** value: { after, fee, amount, min, max, host, method, modes, integration }; steps: ['after', 'details'] or ['details']. */
   function openPayDialog({ steps, value = {}, onSave }) {
     // Nothing is picked for a new payment; editing shows what was saved.
-    payCtx = { steps, at: 0, fee: value.fee || '', method: value.method || '', integration: value.integration || '', onSave };
+    payCtx = { steps, at: 0, fee: value.fee || '', currency: value.currency || 'INR', method: value.method || '', integration: value.integration || '', onSave };
     payDialog.querySelectorAll('input[name="payAfter"]').forEach((r) => { r.checked = r.value === value.after; });
     const modes = value.modes || [];
     payDialog.querySelectorAll('input[name="payMode"]').forEach((c) => { c.checked = modes.includes(c.value); });
@@ -671,6 +685,7 @@
       fee,
       ...(fee === 'FIXED' && { amount }),
       ...(fee === 'USER' && { min, max }),
+      ...((fee === 'FIXED' || fee === 'USER') && { currency: ctx.currency }),
       ...(calc && { host: payHost.value.trim(), method: ctx.method }),
       modes,
       ...(online && { integration: ctx.integration }),
@@ -1160,6 +1175,7 @@
       linked.length && 'actions',
       s.docs?.enabled && s.docs.items.length && 'documents',
       s.notify?.enabled && s.notify.items.length && 'notifications',
+      s.payment?.enabled && s.payment.items.length && 'payments',
       linked.some(hasChecklist) && 'checklists',
     ].filter(Boolean);
     confirmDelete(s.name, () => removeState(id), parts.length ? `Any ${listText(parts)} associated with this state will be deleted too.` : '', { kind: 'State' });
@@ -2037,7 +2053,7 @@
                 steps: ['details'],
                 value: item,
                 onSave: ({ after, ...details }) => {
-                  ['fee', 'amount', 'min', 'max', 'host', 'method', 'modes', 'integration'].forEach((k) => delete item[k]);
+                  ['fee', 'amount', 'min', 'max', 'currency', 'host', 'method', 'modes', 'integration'].forEach((k) => delete item[k]);
                   Object.assign(item, details);
                   commit();
                   renderInspector();
@@ -2246,6 +2262,7 @@
         feeType: i.fee || 'FIXED',
         ...(i.fee === 'FIXED' && i.amount != null && { amount: i.amount }),
         ...(i.fee === 'USER' && i.min != null && { minAmount: i.min, maxAmount: i.max }),
+        ...((i.fee || 'FIXED') !== 'CALCULATED' && { currency: i.currency || 'INR' }),
         ...(i.fee === 'CALCULATED' && { calculator: { host: i.host, method: i.method } }),
         paymentModes: i.modes || ['ONLINE', 'OFFLINE'],
         ...(i.integration && { paymentIntegration: i.integration }),
@@ -2854,6 +2871,19 @@
 
   const isTyping = (t) => t.closest('input, textarea, select, [contenteditable]');
 
+  // Names, questions, options and messages start with a capital letter. Runs in the
+  // capture phase so each field's own input handler already sees the capitalised value.
+  // The host endpoint is a URL, so it keeps the case people type.
+  document.addEventListener('input', (e) => {
+    const t = e.target;
+    if (!t.matches('input[type="text"], textarea') || t.id === 'payHost') return;
+    const first = t.value.match(/\S/);
+    if (!first || first[0] === first[0].toUpperCase()) return;
+    const { selectionStart: start, selectionEnd: end } = t;
+    t.value = t.value.slice(0, first.index) + first[0].toUpperCase() + t.value.slice(first.index + 1);
+    t.setSelectionRange(start, end);
+  }, true);
+
   document.addEventListener('keydown', (e) => {
     if ($('#configDialog').open || $('#helpDialog').open || deleteDialog.open) return;
     if (e.key === 'Escape') {
@@ -2962,7 +2992,7 @@
       select(null);
       resetView();
       toast('Canvas cleared');
-    }, ['This removes all ', el('strong', {}, plural(wf.states.length, 'state')), ' and ', el('strong', {}, plural(wf.actions.length, 'action')), '.'], {
+    }, ['This removes all ', el('strong', {}, plural(wf.states.length, 'state')), ' and ', el('strong', {}, plural(wf.actions.length, 'action')), '. Any documents, notifications, payments and checklists associated with these states and actions will be deleted too.'], {
       title: 'Proceed to clear canvas?',
       question: 'Are you sure you want to clear the canvas?',
       cta: 'Clear Canvas',

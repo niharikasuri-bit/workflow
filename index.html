@@ -397,8 +397,11 @@
               <div class="nf-row">
                 <div class="digit-label-row"><label class="digit-label" for="payAmount">Fee amount <span class="req">*</span></label></div>
                 <div class="nf-control">
-                  <div class="digit-text-input-field">
-                    <input class="digit-employeeCard-input" id="payAmount" type="number" inputmode="decimal" min="0" step="0.01" placeholder="Enter fee amount" autocomplete="off" aria-describedby="payAmountErr">
+                  <div class="pay-amount">
+                    <div class="pay-currency" data-label="Currency for fee amount"></div>
+                    <div class="digit-text-input-field">
+                      <input class="digit-employeeCard-input" id="payAmount" type="number" inputmode="decimal" min="0" step="0.01" placeholder="Enter fee amount" autocomplete="off" aria-describedby="payAmountErr">
+                    </div>
                   </div>
                   <div class="nf-meta"><span class="field__error" id="payAmountErr" hidden></span></div>
                 </div>
@@ -408,8 +411,11 @@
               <div class="nf-row">
                 <div class="digit-label-row"><label class="digit-label" for="payMin">Minimum amount <span class="req">*</span></label></div>
                 <div class="nf-control">
-                  <div class="digit-text-input-field">
-                    <input class="digit-employeeCard-input" id="payMin" type="number" inputmode="decimal" min="0" step="0.01" placeholder="Enter minimum amount" autocomplete="off" aria-describedby="payMinErr">
+                  <div class="pay-amount">
+                    <div class="pay-currency" data-label="Currency for minimum amount"></div>
+                    <div class="digit-text-input-field">
+                      <input class="digit-employeeCard-input" id="payMin" type="number" inputmode="decimal" min="0" step="0.01" placeholder="Enter minimum amount" autocomplete="off" aria-describedby="payMinErr">
+                    </div>
                   </div>
                   <div class="nf-meta"><span class="field__error" id="payMinErr" hidden></span></div>
                 </div>
@@ -417,8 +423,11 @@
               <div class="nf-row">
                 <div class="digit-label-row"><label class="digit-label" for="payMax">Maximum amount <span class="req">*</span></label></div>
                 <div class="nf-control">
-                  <div class="digit-text-input-field">
-                    <input class="digit-employeeCard-input" id="payMax" type="number" inputmode="decimal" min="0" step="0.01" placeholder="Enter maximum amount" autocomplete="off" aria-describedby="payMaxErr">
+                  <div class="pay-amount">
+                    <div class="pay-currency" data-label="Currency for maximum amount"></div>
+                    <div class="digit-text-input-field">
+                      <input class="digit-employeeCard-input" id="payMax" type="number" inputmode="decimal" min="0" step="0.01" placeholder="Enter maximum amount" autocomplete="off" aria-describedby="payMaxErr">
+                    </div>
                   </div>
                   <div class="nf-meta"><span class="field__error" id="payMaxErr" hidden></span></div>
                 </div>
