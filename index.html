@@ -167,10 +167,18 @@
       </button>
     </div>
     <div class="modal__body">
-      <pre class="code" tabindex="0" role="region" aria-label="Configuration code"><code id="configCode"></code></pre>
+      <!-- Black code container: the copy button stays in the top-right corner while the code scrolls -->
+      <div class="code-box">
+        <button type="button" class="code-box__copy" id="copyBtn">
+          <svg class="code-box__icon-copy" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><rect x="9" y="9" width="11" height="11" rx="2" fill="none" stroke="currentColor" stroke-width="2"/><path d="M5 15V6a2 2 0 0 1 2-2h8" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+          <svg class="code-box__icon-done" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          <span id="copyBtnText">Copy Code</span>
+        </button>
+        <span class="sr-only" id="copyStatus" role="status" aria-live="polite"></span>
+        <pre class="code" tabindex="0" role="region" aria-label="Configuration code"><code id="configCode"></code></pre>
+      </div>
     </div>
     <div class="modal__foot">
-      <button type="button" class="btn btn--secondary" id="copyBtn">Copy Code</button>
       <button type="button" class="btn btn--primary" id="downloadBtn">
         <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M12 4v11M7 10l5 5 5-5M5 20h14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
         Download Code

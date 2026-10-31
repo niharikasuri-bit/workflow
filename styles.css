@@ -508,6 +508,19 @@ button { cursor: pointer; }
 .tab:hover { color: var(--text); }
 .modal__body { padding: 16px 24px; overflow-y: auto; flex: 1; display: grid; gap: 14px; align-content: start; }
 .modal__foot { display: flex; justify-content: flex-end; gap: 8px; padding: 14px 24px; border-top: 1px solid var(--border); background: var(--surface-2); border-radius: 0 0 12px 12px; }
+/* Black code container: the copy button is pinned top-right while the code scrolls under it */
+.code-box { position: relative; background: #1e2329; border-radius: var(--radius); }
+.code-box__copy {
+  position: absolute; top: 12px; right: 32px; z-index: 1; background: #1e2329;
+  display: inline-flex; align-items: center; gap: 6px; height: 32px; padding: 0 12px;
+  border: 1px solid #8a939d; border-radius: 4px; color: #fff;
+  font: 500 14px/1 Roboto, sans-serif;
+}
+.code-box__copy:hover { background: #2c333b; border-color: #c4c9cf; }
+.code-box__copy:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
+.code-box__copy.is-copied { color: #8fe3a8; border-color: #8fe3a8; }
+.code-box__icon-done, .code-box__copy.is-copied .code-box__icon-copy { display: none; }
+.code-box__copy.is-copied .code-box__icon-done { display: block; }
 .code {
   margin: 0; padding: 16px; max-height: 52vh; overflow: auto;
   background: #1e2329; color: #e6e6e6; border-radius: var(--radius);

@@ -3069,10 +3069,20 @@
   dialog.querySelectorAll('[data-close]').forEach((b) => b.addEventListener('click', () => dialog.close()));
   dialog.addEventListener('click', (e) => { if (e.target === dialog) dialog.close(); });
 
+  // The copy button reads "Copied" for a moment; the status line tells screen readers.
+  let copiedTimer;
   $('#copyBtn').addEventListener('click', async () => {
     try {
       await navigator.clipboard.writeText(configText);
-      toast('Code copied');
+      clearTimeout(copiedTimer);
+      $('#copyBtn').classList.add('is-copied');
+      $('#copyBtnText').textContent = 'Copied';
+      $('#copyStatus').textContent = 'Code copied';
+      copiedTimer = setTimeout(() => {
+        $('#copyBtn').classList.remove('is-copied');
+        $('#copyBtnText').textContent = 'Copy Code';
+        $('#copyStatus').textContent = '';
+      }, 2000);
     } catch {
       toast('Could not copy. Select the code and copy it instead.');
     }
