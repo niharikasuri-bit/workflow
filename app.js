@@ -1796,8 +1796,10 @@
   }
 
   /** A divided panel section with a blue heading, an optional count and an optional info tip. */
-  function section(title, { count, info } = {}, ...children) {
+  function section(title, { count, info, abbr } = {}, ...children) {
     const tip = info ? infoTip(title, info) : null;
+    // abbr: full form of an abbreviated title, exposed via <abbr title> (WCAG 3.1.4).
+    const titleNode = abbr ? el('abbr', { title: abbr }, title) : title;
     return el(
       'section',
       { class: 'panel-section' },
@@ -1805,7 +1807,7 @@
         ? el(
             'div',
             { class: 'panel-section__head' },
-            el('h3', { class: 'panel-section__title' }, title, count !== undefined ? el('span', { class: 'count' }, count) : null),
+            el('h3', { class: 'panel-section__title' }, titleNode, count !== undefined ? el('span', { class: 'count' }, count) : null),
             tip?.btn
           )
         : null,
@@ -1886,7 +1888,7 @@
               s.type !== 'end'
                 ? section(
                     'SLA',
-                    { info: 'Service level agreement (SLA) is the maximum time work can stay in this state before the work is marked overdue.' },
+                    { abbr: 'Service level agreement', info: 'Service level agreement (SLA) is the maximum time work can stay in this state before the work is marked overdue.' },
                     stepper('SLA Time Hours', s.slaHours, (v) => { s.slaHours = v; commit(); })
                   )
                 : null,
