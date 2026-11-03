@@ -280,7 +280,7 @@ button { cursor: pointer; }
 .node__body { min-width: 0; flex: 1; display: grid; gap: 2px; }
 .node__type { font-size: 12px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.05em; }
 .node--start .node__type { color: #2563eb; }
-.node--intermediate .node__type { color: var(--primary); }
+.node--intermediate .node__type { color: #b5440c; } /* 5.5:1 on white, 4.9:1 on the drop-target tint */
 .node--end .node__type { color: #6d4ce6; }
 .node__name { font-weight: 500; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .node__meta { font-size: 12px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
